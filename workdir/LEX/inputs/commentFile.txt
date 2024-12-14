@@ -1,0 +1,8 @@
+this is not a comment
+// this is a commment
+// this is // a weird // comments //
+
+/*
+This is a multiline 
+comment
+*/
