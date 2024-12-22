@@ -1,0 +1,2 @@
+LEX ex3
+YACC ex1

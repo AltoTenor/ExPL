@@ -1,0 +1,8 @@
+#!/bin/bash
+
+yacc -d yacc_file.y
+lex lex_file.l
+gcc exprtree.c y.tab.c lex.yy.c  -o t
+rm y.tab.c lex.yy.c y.tab.h
+./t 
+rm t

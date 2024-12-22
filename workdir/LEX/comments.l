@@ -18,9 +18,9 @@ SingleComment ^\/\/(.)*
 MultiComment \/\*([^*]|\*+[^*])*\*\/
 %%
 
-{SingleComment} {   printf("Single Line Commment: %s\n", yytext);}
-{MultiComment}  {   printf("Multi Line Commment: %s\n", yytext);}
-(.)             {   continue; }
+{SingleComment} {   printf("Single Line Commment: %s", yytext);}
+{MultiComment}  {   printf("Multi Line Commment: %s", yytext);continue;}
+(.)             {   continue;}
 
 %%
 
