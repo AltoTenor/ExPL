@@ -11,10 +11,9 @@
     struct tnode *no;
 }
 %type <no> expr program 
-%token PLUS MINUS MUL DIV
 %token <no> NUM END
-%left PLUS MINUS
-%left MUL DIV
+%left '+' '-'
+%left '*' '/'
 
 %%
 
@@ -26,10 +25,10 @@ program : expr END {
     }
 ;
 
-expr : expr PLUS expr  {$$ = makeOperatorNode('+',$1,$3);}
-    | expr MINUS expr   {$$ = makeOperatorNode('-',$1,$3);}
-    | expr MUL expr {$$ = makeOperatorNode('*',$1,$3);}
-    | expr DIV expr {$$ = makeOperatorNode('/',$1,$3);}
+expr : expr '+' expr  {$$ = makeOperatorNode('+',$1,$3);}
+    | expr '-' expr   {$$ = makeOperatorNode('-',$1,$3);}
+    | expr '*' expr {$$ = makeOperatorNode('*',$1,$3);}
+    | expr '/' expr {$$ = makeOperatorNode('/',$1,$3);}
     | '(' expr ')'  {$$ = $2;}
     | NUM   {$$ = $1;}
 ;
