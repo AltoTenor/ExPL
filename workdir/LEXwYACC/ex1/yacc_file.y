@@ -1,14 +1,14 @@
 %{
     #include <stdio.h>
     #include <stdlib.h>
-
+    void yyerror(char const *s);
+    int yylex();
 %}
 
 %union{
     char c;
 };
-%token LETTER
-%type <c> LETTER
+%token <c> LETTER
 %left '+' '-'
 
 %%

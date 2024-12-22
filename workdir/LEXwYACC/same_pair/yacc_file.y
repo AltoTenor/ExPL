@@ -3,6 +3,7 @@
   #include<stdlib.h>
   #include<ctype.h>
   int yyerror();
+  int yylex();
 %}
 
 %token DIGIT

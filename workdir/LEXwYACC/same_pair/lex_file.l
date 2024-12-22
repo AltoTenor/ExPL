@@ -16,7 +16,7 @@ number  [0-9]+
 (.|\n) return *yytext;
 
 %%
-yywrap()
+int yywrap()
 {
   return 1;
 }

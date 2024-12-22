@@ -1,7 +1,8 @@
 %{
     #include <stdio.h>
     #include <stdlib.h>
-
+    void yyerror(char const *s);
+    int yylex();
 %}
 
 %token DIGIT NEWLINE
