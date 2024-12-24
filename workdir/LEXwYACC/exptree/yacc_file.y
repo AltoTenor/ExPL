@@ -25,12 +25,12 @@ program : expr END {
     }
 ;
 
-expr : expr '+' expr  {$$ = makeOperatorNode('+',$1,$3);}
-    | expr '-' expr   {$$ = makeOperatorNode('-',$1,$3);}
-    | expr '*' expr {$$ = makeOperatorNode('*',$1,$3);}
-    | expr '/' expr {$$ = makeOperatorNode('/',$1,$3);}
-    | '(' expr ')'  {$$ = $2;}
-    | NUM   {$$ = $1;}
+expr : expr '+' expr    {$$ = makeOperatorNode('+',$1,$3);}
+    | expr '-' expr     {$$ = makeOperatorNode('-',$1,$3);}
+    | expr '*' expr     {$$ = makeOperatorNode('*',$1,$3);}
+    | expr '/' expr     {$$ = makeOperatorNode('/',$1,$3);}
+    | '(' expr ')'      {$$ = $2;}
+    | NUM               {$$ = $1;}
 ;
 
 %%
