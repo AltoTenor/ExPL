@@ -1,0 +1,78 @@
+0
+2116
+0
+0
+0
+0
+0
+0
+INT 10
+
+MOV R4 , 7
+PUSH R4
+MOV R4 , -2
+PUSH R4
+MOV R4 , 4096
+PUSH R4
+PUSH R4
+PUSH R4
+INT 6
+POP R4
+POP R4
+POP R4
+POP R4
+POP R4
+RET
+
+MOV     R4, 5
+PUSH    R4
+MOV     R4, -2
+PUSH    R4
+PUSH    R5
+PUSH    R4
+PUSH    R4
+INT     7
+POP     R4
+POP     R4
+POP     R4
+POP     R4
+POP     R4
+RET
+
+MOV SP , 4096
+MOV R5, "First Number:"
+CALL 2088
+CALL 2058
+MOV R0, [4096]
+MOV R5, "Second Number:"
+CALL 2088
+CALL 2058
+MOV R1, [4096]
+MOV R5, "Third Number:"
+CALL 2088
+CALL 2058
+MOV R2, [4096]
+MOV R5, "Largest:"
+CALL 2088
+BRKP
+
+MOV     R3, R0
+GE      R3, R1
+JZ      R3, 2166
+MOV     R3, R0
+GE      R3, R2
+JZ      R3, 2178
+MOV     R5, R0
+CALL    2088
+JMP     2056
+
+MOV     R3, R1
+GE      R3, R2
+JZ      R3, 2178
+MOV     R5, R1
+CALL    2088
+JMP     2056
+
+MOV     R5, R2
+CALL    2088
+JMP     2056

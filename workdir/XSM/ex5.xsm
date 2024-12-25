@@ -1,0 +1,55 @@
+0
+2116
+0
+0
+0
+0
+0
+0
+INT 10
+
+MOV R4 , 7
+PUSH R4
+MOV R4 , -2
+PUSH R4
+MOV R4 , 4096
+PUSH R4
+PUSH R4
+PUSH R4
+INT 6
+POP R4
+POP R4
+POP R4
+POP R4
+POP R4
+RET
+
+MOV     R4, 5
+PUSH    R4
+MOV     R4, -2
+PUSH    R4
+PUSH    R5
+PUSH    R4
+PUSH    R4
+INT     7
+POP     R4
+POP     R4
+POP     R4
+POP     R4
+POP     R4
+RET
+
+MOV SP, 4096
+MOV R0 , 0
+MOV R5, "Input numbers"
+CALL 2088
+MOV R5, "(0 to end)"
+CALL 2088
+CALL 2058
+MOV R1 , [4096]
+ADD R0, R1
+JNZ R1, 2128    
+
+MOV R5, R0
+CALL 2088
+INT 10
