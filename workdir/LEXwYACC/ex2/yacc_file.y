@@ -9,7 +9,8 @@
     char * str;
 };
 %token <str> LETTER
-%left '+' '-'
+%left '+' 
+%left '*'
 
 %%
 

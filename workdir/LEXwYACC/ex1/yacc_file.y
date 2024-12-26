@@ -9,8 +9,8 @@
     char c;
 };
 %token <c> LETTER
-%left '+' '-'
-
+%left '+' 
+%left '*'
 %%
 
 start : expr '\n'  {
