@@ -8,12 +8,16 @@ FILE *fp;
 
 int pos = 0;
 
+/* Getting a free register if available */
 int getReg(){ 
-    if ( pos == 20 ) {printf("Out of Registers");exit(1);}
+    if ( pos == 19 ) {printf("Out of Registers");exit(1);}
     return pos++;
 }
+
+/* Releasing the highest indexed register used */
 int freeReg(){ pos>0 && pos--; }
 
+/* Some generic start up code containing read write and exit function calls and setting up stack */
 void initialize(){
     fp = fopen("temp.xsm", "w");
     fprintf(fp, "0\n2146\n0\n0\n0\n0\n0\n0\n");
@@ -82,17 +86,18 @@ int addr( struct tnode * t ){
     return 4096+*(t->varname)-'a';
 } 
 
+/* Code Generation to XSM */
 int codeGen( struct tnode *t ) {
     int i=-2,j=-2;
     if ( t != NULL ){
         // printf("%d %d \n", t->nodetype, t->nodetype & 1);
         
-        // Just a connector node
+        // Just a connector node ( just propagates call )
         if ( t->nodetype == Connector ){
             codeGen(t->left);
             codeGen(t->right);
         }
-        // Assignment Operator
+        // Assignment Operator ( evaluates RHS expression and frees that register )
         else if ( t->nodetype == Assign ){
             j = codeGen(t->right);
             fprintf(fp, "MOV [%d], R%d\n", addr(t->left), j);
@@ -101,15 +106,19 @@ int codeGen( struct tnode *t ) {
         // Unary Operators grouped together
         else if( (t->nodetype & 1) == 0 ){
             switch( t->nodetype ){
+                // Simple immediate MOV instruction
                 case Num:   i = getReg();   
                             fprintf(fp, "MOV R%d, %d\n", i, t->val);
                             break;
+                // Value read from memory location (pointed by this node ) to new register
                 case Id :   i = getReg();   
                             fprintf(fp, "MOV R%d, [%d]\n", i, addr(t) );
                             break;
+                // Read() from console to memory location (pointed by left and only child)
                 case Read:  fprintf(fp, "MOV R19, %d\n", addr(t->left) );
                             fprintf(fp, "CALL 2070\n");
                             break;
+                // Write() to console from RHS expression (pointed by left and only child)
                 case Write: i = codeGen(t->left);
                             fprintf(fp, "MOV R19, R%d\n", i);
                             fprintf(fp, "CALL 2108\n");

@@ -34,9 +34,3 @@ char * printNode( struct tnode* t );
 /*To evaluate an expression tree*/
 int evaluate(struct tnode *t, int * ans);
 
-// Prefix printing of the tree
-void prefix(struct tnode *t);
-
-// Postfix printing of the tree
-void postfix(struct tnode *t);
-
