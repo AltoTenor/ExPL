@@ -140,15 +140,7 @@ int main(int argc, char **argv) {
     initialize();
     yyparse();
     fprintf(fp, "JMP EXIT\n");
-    printf("Compiled succesfully! \n");
-    
-    yyin = fopen("temp.xsm", "w+");
-    if (!yyin) {
-        perror("Error opening file");
-        return 1;
-    }
-    printf("Label Translating...\n");
-    yylex();
+    printf("Compiled succesfully (with labels)! \n");
 
     return 0;
 }

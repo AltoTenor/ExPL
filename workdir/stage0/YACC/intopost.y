@@ -4,6 +4,8 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<ctype.h>
+int yylex();
+int yyerror(char const *s);
 /* Custom function to print an operator*/
 void print_operator(char op);
 
@@ -25,7 +27,7 @@ start : expr '\n'  {exit(1);}
 expr: expr '+' expr     {printf("PLUS ");}
     | expr '*' expr     {printf("MUL ");}
     | '(' expr ')'
-    | DIGIT             {printf("NUM%d ",pos);}
+    | DIGIT             {printf("NUM %d ",pos);}
     ;
 
 %%

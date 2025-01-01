@@ -15,6 +15,7 @@ int yywrap()
 {
     if (consoleReadCount < 1) {  // Allow reading from console twice
         consoleReadCount++;
+        printf("Enter input (Second time):\n");
         close(fileno(stdin));         // Close stdin
         freopen("/dev/tty", "r", stdin); 
         yyin = stdin;           // Reset yyin to the console
@@ -30,7 +31,6 @@ int main()
     printf("Enter input (First time):\n");
     yylex();               // First read from console
 
-    printf("Enter input (Second time):\n");
     yylex();               // Second read from console
 
     return 0;

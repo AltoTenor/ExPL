@@ -1,0 +1,8 @@
+begin
+    read(b);
+    read(c);
+    while ( b < c ) do
+        write (b);
+        b = b + 1;
+    endwhile;
+end;

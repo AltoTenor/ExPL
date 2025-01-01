@@ -5,6 +5,8 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<ctype.h>
+int yyerror(char const *s);
+int yylex();
 
 /* Variable to keep track of the position of the number in the input */
 int pos=0;
@@ -18,13 +20,13 @@ int pos=0;
 %%
 
 /*** Rules Section ***/
-S   :   ALPHA C '\n'    { printf("Case 1\nSuccess\n");exit(0);}
-    |   ALPHA '\n'      { printf("Case 2\nSuccess\n");exit(0);}
+S   :   ALPHA C '\n'    { printf("Success\n");exit(0);}
+    |   ALPHA '\n'      { printf("Success\n");exit(0);}
     ;   
-C   :   C ALPHA     { printf("Case 4\n");}
-    |   DIGIT       { printf("Case 5\n");}
-    |   C DIGIT     { printf("Case 6\n");}
-    |   ALPHA       { printf("Case 7\n");}
+C   :   C ALPHA     { }
+    |   DIGIT       { }
+    |   C DIGIT     { }
+    |   ALPHA       { }
     ;
 %%
 
@@ -38,7 +40,7 @@ int yyerror(char const *s)
 int yylex(){
     char c;
     c = getchar();
-    printf("read: %c",c);
+    // printf("read: %c",c);
     if ( isalpha(c) ){
         pos++;
         return ALPHA;

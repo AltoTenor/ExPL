@@ -4,6 +4,9 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<ctype.h>
+int yyerror(char const *s);
+int yylex();
+
 /* Custom function to print an operator*/
 void print_operator(char op);
 
@@ -18,11 +21,11 @@ int pos=0;
 %%
 
 /*** Rules Section ***/
-S   :   E '\n'  {printf("Case 1\n");exit(1);}
+S   :   E '\n'  { printf("Case 1\n");exit(1);}
     ;
-E   :   ETC     {printf("Case 2\n");}
-    |   E E     {printf("Case 3\n");}
-    |   IF      {printf("Case 4 IF level: %d\n", ++pos);}
+E   :   ETC     { printf("Case 2\n");}
+    |   E E     { printf("Case 3\n");}
+    |   IF      { printf("Case 4 IF level: %d\n", ++pos);}
     ;
 %%
 

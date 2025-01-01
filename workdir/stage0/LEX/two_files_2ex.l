@@ -25,7 +25,7 @@ int main()
 {
    inFile = 1;
    file1="inputs/input_file.l";
-   yyin = fopen("inputs/input_file.l","r");
+   yyin = fopen(file1,"r");
    yylex();
    return 1;
 }
