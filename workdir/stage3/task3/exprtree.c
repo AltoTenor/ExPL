@@ -39,6 +39,8 @@ struct tnode* createTree(   int val,
                         break;
         case ifNode:    check(children[0], boolType);
                         break;
+        case whileNode: check(children[0], boolType);
+                        break;
 
     }
     temp->type = vartype;

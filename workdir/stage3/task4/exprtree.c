@@ -39,6 +39,8 @@ struct tnode* createTree(   int val,
                         break;
         case ifNode:    check(children[0], boolType);
                         break;
+        case whileNode: check(children[0], boolType);
+                        break;
 
     }
     temp->type = vartype;
@@ -76,6 +78,8 @@ char * printNode( struct tnode* t ){
         case ifNode: return "ifNode";
         case ifstmtNode: return "ifstmtNode";
         case whileNode: return "whileNode";
+        case breakNode: return "break";
+        case contNode: return "continue";
         case numNode: printf("%d ->", t->val); return "Num";
         case idNode: printf("%s ->", t->varname); return "Id";
     }

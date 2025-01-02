@@ -30,6 +30,8 @@ typedef enum {
     ifNode = 23,
     ifstmtNode = 25,
     whileNode = 27,
+    breakNode = 22,
+    contNode = 24,
 
 } NodeType;
 

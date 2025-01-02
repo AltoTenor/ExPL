@@ -44,6 +44,8 @@
 (while)     { return WHILE; }
 (do)        { return DO; } 
 (endwhile)  { return ENDWHILE; }
+(break)     {   yylval.no = createTree(-1, invalidType, "", breakNode,  NULL , 0 ); return BREAK; }
+(continue)  {   yylval.no = createTree(-1, invalidType, "", contNode,  NULL , 0 ); return CONTINUE; }
                 
 (!=)        {   return NE; }
 (==)        {   return EQ; }

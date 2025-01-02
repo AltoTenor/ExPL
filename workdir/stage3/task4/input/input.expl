@@ -2,7 +2,7 @@ begin
     read(b);
     read(c);
     while ( b < c ) do
-        write (b);
+        write(b);
         b = b + 1;
     endwhile;
 end;

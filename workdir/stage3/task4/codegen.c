@@ -99,7 +99,7 @@ int addr( struct tnode * t ){
 } 
 
 /* Code Generation to XSM */
-int codeGen( struct tnode *t ) {
+int codeGen( struct tnode *t , int* jmpLabels) {
 
     int i=-2,j=-2;
     if ( t != NULL ){
@@ -107,15 +107,16 @@ int codeGen( struct tnode *t ) {
         
         // Just a connector node ( just propagates call )
         if ( t->nodetype == connectorNode ){
-            codeGen(t->children[0]);
-            codeGen(t->children[1]);
+            codeGen(t->children[0], jmpLabels);
+            codeGen(t->children[1], jmpLabels);
         }
         // Assignment Operator ( evaluates RHS expression and frees that register )
         else if ( t->nodetype == assignNode ){
-            j = codeGen(t->children[1]);
+            j = codeGen(t->children[1], jmpLabels);
             fprintf(fp, "MOV [%d], R%d\n", addr(t->children[0]), j);
             freeReg();
         }
+        // If then else construct
         else if ( t-> nodetype == ifNode ){
             int l1 = getLabel();
             int l2;
@@ -123,20 +124,21 @@ int codeGen( struct tnode *t ) {
             if (elseExists) l2 = getLabel();
 
             // Code for condition check
-            i = codeGen(t->children[0]);
+            i = codeGen(t->children[0], jmpLabels);
             // If condition is not true then jump to exit / else
             fprintf(fp, "JZ  R%d, L%d\n", i, l1);
             // If it is true then execute this part
-            codeGen(t->children[1]);
+            codeGen(t->children[1], jmpLabels);
             // After true part is done exit
             if (elseExists) fprintf(fp, "JMP L%d\n", l2);
             // Else/Exit label
             fprintf(fp, "L%d:\n", l1 );
             // Else exists
-            codeGen(t->children[2]);
+            codeGen(t->children[2], jmpLabels);
             // Exit label
             if (elseExists) fprintf(fp, "L%d:\n", l2 );
         }
+        // While construct
         else if ( t-> nodetype == whileNode ){
             int l1 = getLabel();
             int l2 = getLabel();
@@ -144,16 +146,24 @@ int codeGen( struct tnode *t ) {
             // Label to restart loop
             fprintf(fp, "L%d:\n", l1 );
             // Check condition
-            i = codeGen(t->children[0]);
-            // If condiiton fails jump to end
+            i = codeGen(t->children[0], jmpLabels);
+            // If condition fails jump to end
             fprintf(fp, "JZ  R%d, L%d\n", i, l2);
-            // If condiiton suceeds execute code
-            codeGen(t->children[1]);
+            // If condiiton suceeds execute code and pass labels
+            int * temp = (int *)malloc(2*sizeof(int));
+            temp[0] = l1;
+            temp[1] = l2;
+            codeGen(t->children[1], temp);
             // Jump to start
             fprintf(fp, "JMP L%d\n", l1);
             // Exit label
             fprintf(fp, "L%d:\n", l2 );
-
+        }
+        else if ( t-> nodetype == breakNode ){
+            fprintf(fp, "JMP L%d\n", jmpLabels[1]);
+        }
+        else if ( t-> nodetype == contNode ){
+            fprintf(fp, "JMP L%d\n", jmpLabels[0]);
         }
         // Unary Operators grouped together
         else if( (t->nodetype & 1) == 0 ){
@@ -171,7 +181,7 @@ int codeGen( struct tnode *t ) {
                                 fprintf(fp, "CALL READ\n");
                                 break;
                 // Write() to console from RHS expression (pointed by children[0] and only child)
-                case writeNode: i = codeGen(t->children[0]);
+                case writeNode: i = codeGen(t->children[0], jmpLabels);
                                 fprintf(fp, "MOV R19, R%d\n", i);
                                 fprintf(fp, "CALL WRITE\n");
                                 break;
@@ -179,8 +189,8 @@ int codeGen( struct tnode *t ) {
         }
         // Arithmetic Operators grouped together
         else if ( (t->nodetype & 1) == 1){
-            i = codeGen(t->children[0]);
-            j = codeGen(t->children[1]);
+            i = codeGen(t->children[0], jmpLabels);
+            j = codeGen(t->children[1], jmpLabels);
             switch( t->nodetype ){
                 case addNode:   fprintf(fp, "ADD R%d, R%d\n", i, j);
                                 break;

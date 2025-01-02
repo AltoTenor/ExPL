@@ -13,25 +13,24 @@
 
 int yywrap()
 {
-    if (consoleReadCount < 1) {  // Allow reading from console twice
+    if (consoleReadCount < 1) {
         consoleReadCount++;
         printf("Enter input (Second time):\n");
-        close(fileno(stdin));         // Close stdin
+        // Close console
+        close(fileno(stdin));
         freopen("/dev/tty", "r", stdin); 
-        yyin = stdin;           // Reset yyin to the console
-        return 0;               // Continue scanning
+        // Reset yyin to the console
+        yyin = stdin;           
+        return 0;
     }
-    return 1;                   // Stop scanning after two console reads
+    return 1;
 }
 
 int main()
 {
-    consoleReadCount = 0;  // Initialize the console read counter
-
+    consoleReadCount = 0;
     printf("Enter input (First time):\n");
-    yylex();               // First read from console
-
-    yylex();               // Second read from console
-
+    yylex();
+    yylex();
     return 0;
 }

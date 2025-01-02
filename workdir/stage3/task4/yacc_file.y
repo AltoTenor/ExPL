@@ -19,7 +19,7 @@
 }
 %type <no> expr program slist stmt 
 %type <no> AsgStmt InputStmt OutputStmt IfStmt WhileStmt
-%token <no> NUM START END ID READ WRITE IF ENDIF ELSE THEN WHILE DO ENDWHILE
+%token <no> NUM START END ID READ WRITE IF ENDIF ELSE THEN WHILE DO ENDWHILE BREAK CONTINUE
 %token <no> GE GT LE LT EQ NE
 %nonassoc GE GT LE LT EQ NE
 %left '+' '-'
@@ -29,8 +29,11 @@
 
 program : START slist END ';' {
                         $$ = $2;
-                        // printTree($$);
-                        codeGen($$);
+                        printTree($$);
+                        int temp_arr[2];
+                        temp_arr[0] = -1;
+                        temp_arr[1] = -1;
+                        codeGen($$, temp_arr);
                         // int * ans = (int *)malloc(sizeof(int)*26);
                         // evaluate($$, ans);
                     }
@@ -48,6 +51,8 @@ stmt : AsgStmt      { $$ = $1; }
     | OutputStmt    { $$ = $1; }
     | IfStmt        { $$ = $1; }
     | WhileStmt     { $$ = $1; }
+    | BREAK ';'     { $$ = $1; }
+    | CONTINUE ';'  { $$ = $1; }
 ;
 
 AsgStmt : ID '=' expr ';' {
@@ -78,7 +83,6 @@ WhileStmt : WHILE '(' expr ')' DO slist ENDWHILE ';' {
             }
 ;
 
-
 expr : expr '+' expr    {   $$ = createTree(-1, intType , "", addNode, alloc_2($1, $3), 2); }
     | expr '*' expr     {   $$ = createTree(-1, intType , "", mulNode, alloc_2($1, $3), 2); }
     | expr '-' expr     {   $$ = createTree(-1, intType , "", subNode, alloc_2($1, $3), 2); }
@@ -89,8 +93,8 @@ expr : expr '+' expr    {   $$ = createTree(-1, intType , "", addNode, alloc_2($
     | expr GT expr      {   $$ = createTree(-1, boolType , "", gtNode, alloc_2($1, $3), 2); }
     | expr NE expr      {   $$ = createTree(-1, boolType , "", neNode, alloc_2($1, $3), 2); }
     | expr EQ expr      {   $$ = createTree(-1, boolType , "", eqNode, alloc_2($1, $3), 2); }
-    | NUM               { $$ = $1; }
-    | ID                { $$ = $1; }
+    | NUM               {   $$ = $1; }
+    | ID                {   $$ = $1; }
 ;
 
 %%
