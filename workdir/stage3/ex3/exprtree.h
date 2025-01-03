@@ -1,20 +1,5 @@
-// typedef struct tnode{
-//     int val; //value of the expression tree
-//     char *op; //indicates the opertor
-//     struct tnode *left,*right; //left and right branches
-// }tnode;
-
-
 
 typedef enum {
-    readNode = 2,
-    writeNode = 4,
-    connectorNode = 0,
-    assignNode = 5,
-
-    idNode = 10,
-    numNode = 12,
-
     addNode = 1,
     mulNode = 3,
     subNode = 7,
@@ -27,13 +12,22 @@ typedef enum {
     eqNode = 19, 
     neNode = 21,
 
-    ifNode = 23,
-    ifstmtNode = 25,
-    whileNode = 27,
-    dowhileNode = 26,
-    repeatNode = 28,
-    breakNode = 22,
-    contNode = 24,
+    connectorNode = 0,
+    readNode = 2,
+    writeNode = 4,
+    assignNode = 6,
+
+    idNode = 10,
+    numNode = 12,
+
+
+    ifNode = 14,
+    ifstmtNode = 16,
+    whileNode = 18,
+    dowhileNode = 20,
+    repeatNode = 22,
+    breakNode = 24,
+    contNode = 26,
 
 } NodeType;
 

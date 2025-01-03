@@ -1,8 +1,7 @@
 begin
     read(b);
     read(c);
-    repeat
+    if (b+c == 10) then
         write(b);
-        b = b + 1;
-    until ( b < c );
+    endif;
 end;

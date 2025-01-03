@@ -51,6 +51,7 @@ int addr_compute(int line){
     return 2*(line - 9) + 2056;
 }
 
+// ASSUMPTION: Label is preceeded by a space or a comma and is the last entire word 
 
 char* find_addr_from_label(char * result_str, struct node * head){
     int l = strlen(yytext);

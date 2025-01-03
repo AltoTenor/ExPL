@@ -17,10 +17,13 @@
 %union{
     struct tnode *no;
 }
+
 %type <no> expr program slist stmt 
 %type <no> AsgStmt InputStmt OutputStmt IfStmt WhileStmt DoWhileStmt RepeatStmt
-%token <no> NUM START END ID READ WRITE IF ENDIF ELSE THEN WHILE DO ENDWHILE BREAK CONTINUE
-%token <no> REPEAT UNTIL
+%token <no> START END 
+%token <no> ID NUM READ WRITE 
+%token <no> IF ENDIF ELSE THEN  
+%token <no> REPEAT UNTIL WHILE DO ENDWHILE BREAK CONTINUE
 %token <no> GE GT LE LT EQ NE
 %nonassoc GE GT LE LT EQ NE
 %left '+' '-'
@@ -35,8 +38,8 @@ program : START slist END ';' {
                         temp_arr[0] = -1;
                         temp_arr[1] = -1;
                         codeGen($$, temp_arr);
-                        // int * ans = (int *)malloc(sizeof(int)*26);
-                        // evaluate($$, ans);
+                        int * ans = (int *)malloc(sizeof(int)*26);
+                        evaluate($$, ans);
                     }
         | START END {   
                         // codeGen($$);

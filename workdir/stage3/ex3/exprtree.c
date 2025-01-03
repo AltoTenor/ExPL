@@ -37,12 +37,10 @@ struct tnode* createTree(   int val,
                         break;
         case assignNode:check(children[1], intType);
                         break;
-        case ifNode:    check(children[0], boolType);
-                        break;
+        case ifNode:    
         case whileNode: check(children[0], boolType);
                         break;
-        case dowhileNode: check(children[1], boolType);
-                        break;
+        case dowhileNode:
         case repeatNode: check(children[1], boolType);
                         break;
 
