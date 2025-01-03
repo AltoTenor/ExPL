@@ -1,0 +1,3 @@
+decl
+enddecl
+write(mesg);

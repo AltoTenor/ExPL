@@ -1,0 +1,16 @@
+#!/bin/bash
+
+yacc -d yacc_file.y
+lex lex_file.l
+gcc codegen.c exprtree.c y.tab.c lex.yy.c  -o t
+rm y.tab.c lex.yy.c y.tab.h
+./t $1
+exit_code=$?
+rm t
+
+if [ $exit_code -ne 1 ]; then
+    lex label_translator.l
+    gcc lex.yy.c -o t
+    ./t
+    rm t lex.yy.c
+fi
