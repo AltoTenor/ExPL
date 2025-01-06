@@ -48,7 +48,7 @@ void initialize(){
 
     fprintf(fp,"MOV     R1 , \"Read\"\n");
     fprintf(fp,"PUSH    R1\n");
-    fprintf(fp,"MOV     R1 , -2\n");
+    fprintf(fp,"MOV     R1 , -1\n");
     fprintf(fp,"PUSH    R1\n");
     fprintf(fp,"MOV     R1 , R19\n");
     fprintf(fp,"PUSH    R1\n");
