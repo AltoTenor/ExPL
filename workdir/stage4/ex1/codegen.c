@@ -17,7 +17,7 @@ int getReg(){
 }
 
 /* Releasing the highest indexed register used */
-int freeReg(){ register_index>0 && register_index--; }
+int freeReg(){ if(register_index>0) register_index--; }
 
 /* Getting a new label for Jump instructions */
 int getLabel(){ return label_index++; }
@@ -121,14 +121,10 @@ int codeGen( struct tnode *t , int* jmpLabels) {
 
                 // Assignment Operator ( evaluates RHS expression and frees that register )
                 case assignNode:{
+                    i = codeGen(t->children[0], jmpLabels);
                     j = codeGen(t->children[1], jmpLabels);
-
-                    if (t->children[0]->nodetype == arrTypeNode ){
-                        i = codeGen(t->children[0], jmpLabels);
-                        fprintf(fp, "MOV [R%d], R%d\n", i, j );
-                    }
-                    else fprintf(fp, "MOV [%d], R%d\n", addr(t->children[0]), j);
-
+                    fprintf(fp, "MOV [R%d], R%d\n", i, j );
+                    freeReg();
                     freeReg();
                     break;
                 }
@@ -154,6 +150,8 @@ int codeGen( struct tnode *t , int* jmpLabels) {
                     codeGen(t->children[2], jmpLabels);
                     // Exit label
                     if (elseExists) fprintf(fp, "L%d:\n", l2 );
+
+                    freeReg();
                     break;
                 }
 
@@ -177,6 +175,7 @@ int codeGen( struct tnode *t , int* jmpLabels) {
                     fprintf(fp, "JMP L%d\n", l1);
                     // Exit label
                     fprintf(fp, "L%d:\n", l2 );
+                    freeReg();
                     break;
                 }
 
@@ -208,6 +207,7 @@ int codeGen( struct tnode *t , int* jmpLabels) {
                     fprintf(fp, "JNZ  R%d, L%d\n", i, l1);
                     // Exit label
                     fprintf(fp, "L%d:\n", l2 );
+                    freeReg();
                     break;
                 }
                 // Repeat-Until construct
@@ -228,6 +228,7 @@ int codeGen( struct tnode *t , int* jmpLabels) {
                     fprintf(fp, "JZ  R%d, L%d\n", i, l1);
                     // Exit label
                     fprintf(fp, "L%d:\n", l2 );
+                    freeReg();
                     break;
                 }
 
@@ -251,6 +252,7 @@ int codeGen( struct tnode *t , int* jmpLabels) {
                 // Value read from memory location (pointed by this node ) to new register
                 case idNode :{       
                     i = getReg();   
+                    printf("%d\n", addr(t));
                     fprintf(fp, "MOV R%d, %d\n", i, addr(t) );
                     break;
                 }
@@ -272,7 +274,7 @@ int codeGen( struct tnode *t , int* jmpLabels) {
                     j = codeGen(t->children[1], jmpLabels);
                     k = codeGen(t->children[2], jmpLabels);
                     fprintf(fp, "MOV R%d, %d\n", i, addr(t->children[0]) );
-                    fprintf(fp, "MUL R%d, R%d\n", j, temp_n );
+                    fprintf(fp, "MUL R%d, %d\n", j, temp_n );
                     fprintf(fp, "ADD R%d, R%d\n", j, k );
                     fprintf(fp, "ADD R%d, R%d\n", i, j );
                     freeReg();
@@ -285,6 +287,7 @@ int codeGen( struct tnode *t , int* jmpLabels) {
                     i = codeGen(t->children[0], jmpLabels);
                     fprintf(fp, "MOV R19, R%d\n", i );
                     fprintf(fp, "CALL READ\n");
+                    freeReg();
                     break;
                 }
                                     
@@ -293,6 +296,7 @@ int codeGen( struct tnode *t , int* jmpLabels) {
                     i = codeGen(t->children[0], jmpLabels);
                     fprintf(fp, "MOV R19, R%d\n", i);
                     fprintf(fp, "CALL WRITE\n");
+                    freeReg();
                     break;
                 }
             }

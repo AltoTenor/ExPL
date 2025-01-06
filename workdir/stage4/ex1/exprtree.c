@@ -6,7 +6,7 @@
 
 struct Gsymbol * symbolTable;
 int SP;
-int * arr;
+int *arr;
 
 // Returns a pointer to the symbol table entry for the variable, returns NULL otherwise.
 struct Gsymbol *Lookup(char * name){
@@ -19,7 +19,7 @@ struct Gsymbol *Lookup(char * name){
 }
 
 // Creates a symbol table entry.
-void Install(char *name, int type, int* sizes, int arrSize){
+void Install(char *name, int type, int first, int second){
 
     if ( Lookup(name) != NULL ){ 
         printf("Variable redeclared!\n"); 
@@ -27,27 +27,32 @@ void Install(char *name, int type, int* sizes, int arrSize){
     }
 
     struct Gsymbol * temp = (struct Gsymbol *)malloc(sizeof(struct Gsymbol *));
-    temp->name = (char*)malloc(12*sizeof(char));
+    temp->name = (char*)malloc(32*sizeof(char));
     strcpy(temp->name, name);
 
+    temp->size = (int*)malloc(8*sizeof(int));
 
-    int prod = 1;
-    for (int i=0;i<arrSize;i++) prod*=sizes[i];
-    temp->size = sizes;
+    temp->size[0] = first;
+    temp->size[1] = second;
+
+    int prod = temp->size[0];
+    if (temp->size[1]!=0) prod *= temp->size[1];
 
     temp->type = type;
     temp->binding = SP;
     SP += prod;
+    temp->next = NULL;
 
     if ( symbolTable == NULL ){
         symbolTable = temp;
     }
     else {
         struct Gsymbol * tail = symbolTable;
-        while ( tail->next != NULL ) tail = tail->next;
+        while ( tail->next != NULL ){ 
+            tail = tail->next;
+        }
         tail->next = temp;
     }
-    temp->next = NULL;
 }
 
 
@@ -57,24 +62,17 @@ void setTypes(struct tnode* t, int type){
         setTypes( t -> children[1], type);
     }
     else if( t->nodetype == idNode ){
-        arr = (int *)malloc(sizeof(int));
-        arr[0] = 1;
-        Install( t->varname, type, arr, 1);
+        Install( t->varname, type, 1, 0);
         t->Gentry = Lookup(t->varname);
         t->type = type;
     }
     else if( t->nodetype == arrTypeNode ){
-        arr = (int *)malloc(sizeof(int));
-        arr[0] = t->children[1]->val;
-        Install( t->children[0]->varname, type, arr, 1);
+        Install( t->children[0]->varname, type, t->children[1]->val, 0);
         t->children[0]->Gentry = Lookup(t->children[0]->varname);
         t->children[0]->type = type;
     }
     else if( t->nodetype == arr2dTypeNode ){
-        arr = (int *)malloc(2*sizeof(int));
-        arr[0] = t->children[1]->val;
-        arr[1] = t->children[2]->val;
-        Install( t->children[0]->varname, type, arr, 2);
+        Install( t->children[0]->varname, type, t->children[1]->val, t->children[2]->val);
         t->children[0]->Gentry = Lookup(t->children[0]->varname);
         t->children[0]->type = type;
     }
@@ -90,7 +88,7 @@ void printSymbolTable(){
     while(g){
         printf("%s | %d | (",g->name, g->type);
         for (int i=0;i<3;i++){
-            printf(" %d ,", g->size[i]);
+            if ( g->size[i]!=0 ) printf(" %d ,", g->size[i]);
         }
         printf(") | %d\n", g->binding );
         g = g->next;

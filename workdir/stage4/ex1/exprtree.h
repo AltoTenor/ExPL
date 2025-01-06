@@ -67,18 +67,18 @@ struct tnode* createTree(   int val,
                             struct Gsymbol * entry );
 
 struct Gsymbol {
+    char * name;       // name of the variable
     int type;         // type of the variable
     int binding;      // stores the static memory address allocated to the variable
+    int * size;         // size of the type of the variable
     struct Gsymbol *next;
-    int* size;         // size of the type of the variable
-    char* name;       // name of the variable
 };
 
 // Returns a pointer to the symbol table entry for the variable, returns NULL otherwise.
 struct Gsymbol *Lookup(char * name);
 
 // Creates a symbol table entry.
-void Install(char *name, int type, int *size, int arrSize);
+void Install(char *name, int type, int first, int second);
 
 // 
 void setTypes(struct tnode* t, int type);

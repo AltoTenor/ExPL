@@ -89,6 +89,10 @@ varList : varList ',' ID    {
     | ID '[' NUM ']'    { 
         $$ = createTree(-1, invalidType, "", arrTypeNode,  alloc_2($1, $3), 2, NULL); 
     }
+    | varList ',' ID '[' NUM ']''[' NUM ']'    { 
+        struct tnode * t = createTree(-1, invalidType, "", arr2dTypeNode,  alloc_3($3, $5, $8), 3, NULL); 
+        $$ = createTree(-1, invalidType, "",connectorNode,  alloc_2($1, t), 2, NULL);
+    }
     | ID '[' NUM ']' '[' NUM ']'    { 
         $$ = createTree(-1, invalidType, "", arr2dTypeNode,  alloc_3($1, $3, $6), 3, NULL); 
     }

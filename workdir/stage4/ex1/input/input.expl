@@ -1,7 +1,0 @@
-decl
-    int xyz[10][10];
-enddecl
-
-read(xyz[0][3]);
-read(xyz[3][0]);
-write(xyz[3][0]);
