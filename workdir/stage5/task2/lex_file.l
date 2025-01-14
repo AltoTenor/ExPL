@@ -24,8 +24,8 @@ digit [0-9]
 (int)       {   return INT; }
 (str)       {   return STR; }
 
-(main)      { return MAIN; }
-(return)    { return RETURN; }
+(main)      {   yylval.no = createTree(-1, invalidType, "main", idNode,  NULL , 0 , NULL, NULL); return MAIN; }
+(return)    {   return RETURN; }
 
 (read)      {   return READ; }
 (write)     {   return WRITE; }

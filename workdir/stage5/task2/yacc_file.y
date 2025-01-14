@@ -38,6 +38,10 @@
 
 %%
 
+/* Grammar rules section */
+
+
+/* Program Root section */
 Program : GDeclBlock FDefBlock MainBlock {
         $$ = createTree(-1, invalidType, "", rootNode,  alloc_3(NULL, $2, NULL) , 3 , NULL, NULL); 
         printTree($2, NULL, 0);
@@ -50,11 +54,10 @@ Program : GDeclBlock FDefBlock MainBlock {
     }
 ;
 
-
+/* Global Declarations */
 GDeclBlock : DECL GDeclList ENDDECL { $$ = $2; }
     | DECL ENDDECL { $$ = NULL; }
 ;
-
 GDeclList : GDeclList GDecl {
         $$ = createTree(-1, invalidType, "", connectorNode,  alloc_2($1, $2) , 2 , NULL, NULL); 
     }
@@ -65,13 +68,11 @@ GDecl : Type GidList ';' {
         setGTypes( $2, $1->type, NULL );
     }
 ;
-
 GidList : GidList ',' Gid {
         $$ = createTree(-1, invalidType, "", connectorNode,  alloc_2($1, $3) , 2 , NULL, NULL); 
     }
     | Gid { $$ = $1; }
 ;
-
 Gid : ID { 
         $$ = $1; 
     }
@@ -86,13 +87,12 @@ Gid : ID {
     }
 ;
 
-
+/* Function Definition */
 FDefBlock : FDefBlock Fdef {
         $$ = createTree(-1, invalidType, "", connectorNode, alloc_2($1, $2), 2, NULL, NULL );
     }
     | Fdef { $$ = $1; }
 ;
-
 Fdef : Type ID '(' ParamList ')' '{' FuncBody '}' {
         $$ = createTree(-1, invalidType, "", FDefNode, alloc_4($1, $2, $4, $7), 4, NULL, $7-> Lentry );
         addParamListToLsymbolTable($2->Gentry->paramlist, $$-> Lentry);
@@ -100,6 +100,13 @@ Fdef : Type ID '(' ParamList ')' '{' FuncBody '}' {
     }
     | Type ID '(' ')' '{' FuncBody '}' {
         $$ = createTree(-1, invalidType, "", FDefNode, alloc_4($1, $2, NULL, $6), 4, NULL, $6 -> Lentry);
+        printLSymbolTable($$->Lentry);
+    }
+;
+/* Main Function */
+MainBlock: INT MAIN '(' ')' '{' FuncBody '}' {
+        $$ = createTree(-1, invalidType, "", FDefNode, alloc_4($1, $2, NULL, $6), 4, NULL, $6 -> Lentry);
+        printLSymbolTable($$->Lentry);
     }
 ;
 FuncBody : LdeclBlock Body {
@@ -110,7 +117,7 @@ FuncBody : LdeclBlock Body {
     | Body { $$ = $1; }
 ;
 
-
+/* Local Function Declarations */
 LdeclBlock : DECL LDecList ENDDECL { $$ = $2; }
     | DECL ENDDECL { $$ = NULL; }
 ;
@@ -125,38 +132,29 @@ LDecl : Type IdList ';'{
         setLTypes($1->type, $2, $$);
     }
 ;
-
 IdList : IdList ',' ID {
         $$ = createTree(-1, invalidType, "", connectorNode,  alloc_2($1, $3) , 2 , NULL, NULL); 
     }
     | ID { $$ = $1; }
 ;
 
-
+/* Parameters in Function Declaration */
 ParamList : ParamList ',' Param {
         $$ = createTree(-1, invalidType, "", connectorNode,  alloc_2($1, $3) , 2 , NULL, NULL); 
     }
     | Param { $$ = $1; }
 ;
-
 Param : Type ID {
         $$ = createTree(-1, invalidType, "", paramNode,  alloc_2($1, $2) , 2 , NULL, NULL); 
     }
 ;
-
 Type : INT { $$ = createTree(-1, intType, "", intTypeNode,  NULL , 0, NULL, NULL); }
     | STR { $$ = createTree(-1, strType, "", strTypeNode,  NULL , 0, NULL, NULL); }
 ;
 
 
-MainBlock: INT MAIN '(' ')' '{' FuncBody '}' {
-
-    }
-;
-
-Body: START slist END {
-
-    }
+/* Parameters in Function Declaration */
+Body: START slist END { $$ = $2; }
 ;
 
 
@@ -283,7 +281,7 @@ expr :  '(' expr ')' {
     | identifier        {   
         // $$ = createTree(-1, $1->Gentry->type , "", derefNode, alloc_1($1), 1, NULL); 
     }
-    | '&' identifier    { }
+    // | '&' identifier    { }
     | identifier '(' ')' 
     | identifier '(' ArgList ')'
 ;

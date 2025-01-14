@@ -8,235 +8,6 @@ struct Gsymbol * symbolTable;
 int SP;
 int *arr;
 
-// Returns a pointer to the symbol table entry for the variable, returns NULL otherwise.
-struct Gsymbol *GLookup(char * name){
-    struct Gsymbol * ptr = symbolTable;
-    while ( ptr ){
-        if ( strcmp(name, ptr->name) == 0 ) return ptr;
-        ptr = ptr->next;
-    }
-    return NULL;
-}
-
-// Creates a symbol table entry.
-void GInstall(char *name, int type, int size){
-
-    // Error when duplicate variable names
-    if ( GLookup(name) != NULL ){ 
-        printf("Variable redeclared!\n"); 
-        exit(1); 
-    }
-
-    struct Gsymbol * temp = (struct Gsymbol *)malloc(sizeof(struct Gsymbol));
-    temp->name = (char*)malloc(32*sizeof(char));
-    strcpy(temp->name, name);
-    temp->size = size;
-    temp->type = type;
-    temp->binding = SP;
-    temp->flabel = -1;
-    temp->next = NULL;
-    temp->paramlist = NULL;
-    SP += size;
-
-    // Inserting in a linked list
-    if ( symbolTable == NULL ){
-        symbolTable = temp;
-    }
-    else {
-        struct Gsymbol * tail = symbolTable;
-        while ( tail->next != NULL ){ 
-            tail = tail->next;
-        }
-        tail->next = temp;
-    }
-}
-
-struct Lsymbol * LInstall(char *name, int type, struct tnode* head){
-
-    struct Lsymbol * cur = (struct Lsymbol *)malloc(sizeof(struct Lsymbol));
-    cur->name = (char*)malloc(sizeof(char)*20);
-    strcpy(cur->name, name);
-    cur->type = type;
-    cur->binding = -1;
-    cur->next = NULL;
-
-    if ( head->Lentry == NULL ){
-        head -> Lentry = cur;
-    }
-    else{
-        struct Lsymbol* temp = head->Lentry;
-        while ( temp->next ){
-            temp = temp->next;
-        }
-        temp -> next = cur;
-    }
-
-    return cur;
-}
-
-
-void insertIntoParamList(struct Gsymbol* paramHead, struct Paramstruct* cur){
-    
-    if ( paramHead->paramlist == NULL ){
-        paramHead->paramlist = cur;
-    }
-    else {
-        struct Paramstruct* temp = paramHead->paramlist;
-        while ( temp->next != NULL ){ 
-            if ( strcmp(temp->name, cur->name) == 0 ){
-                printf("Variable Duplicate : %s\n", cur->name);
-                exit(1);
-            }
-            temp = temp->next;
-        }
-        if ( strcmp(temp->name, cur->name) == 0 ){
-            printf("Variable Duplicate : %s\n", cur->name);
-            exit(1);
-        }
-        temp->next = cur;
-    }
-}
-
-struct Paramstruct* searchParamList(struct Paramstruct* head, char* name){
-    struct Paramstruct* temp = head;
-    while ( temp != NULL ){ 
-        if ( strcmp(temp->name, name) == 0 ){
-            return temp;
-        }
-        temp = temp->next;
-    }
-    return NULL;
-}
-
-// Traverses the GDecl Tree and sets the types for the parameters 
-void setGTypes(struct tnode* t, int type, struct Gsymbol* paramHead){
-    if ( t->nodetype == connectorNode ){
-        setGTypes( t -> children[0], type, paramHead);
-        setGTypes( t -> children[1], type, paramHead);
-    }
-    else if( t->nodetype == idNode ){
-        GInstall( t->varname, type, 1);
-        t->Gentry = GLookup(t->varname);
-        t->type = type;
-    }
-    else if( t->nodetype == arrTypeNode ){
-        GInstall( t->children[0]->varname, type, t->children[1]->val);
-        t->children[0]->Gentry = GLookup(t->children[0]->varname);
-        t->children[0]->type = type;
-    }
-    else if( t->nodetype == funcTypeGDeclNode ){
-        GInstall( t->children[0]->varname, type, 0);
-        t->children[0]->Gentry = GLookup(t->children[0]->varname);
-        t->children[0]->type = type;
-        if ( t->children[1] )
-            setGTypes( t -> children[1], type, t->children[0]->Gentry);
-    }
-    else if( t->nodetype == paramNode ){
-        struct Paramstruct * param = (struct Paramstruct*)malloc(sizeof(struct Paramstruct));
-        param->name = (char*)malloc(sizeof(char)*20);
-        strcpy(param->name, t->children[1]->varname);
-        param->type = t->children[0]->type;
-        param->checked = 0;
-        param->next = NULL;
-        insertIntoParamList(paramHead, param);
-    }
-    // else if( t->nodetype == arr2dTypeNode ){
-    //     Install( t->children[0]->varname, type, t->children[1]->val, t->children[2]->val);
-    //     t->children[0]->Gentry = GLookup(t->children[0]->varname);
-    //     t->children[0]->type = type;
-    // }
-    else{
-        printf("Invalid variable in declarations!\n");
-        exit(1);
-    }
-}
-
-// Print Global Symbol Table
-void printGSymbolTable(){
-    struct Gsymbol * g = symbolTable;
-    printf("name | type | size | binding | paramlist\n");
-    while(g){
-        printf("%s | %d | %d | %d | ", 
-            g->name, g->type, g->size, g->binding 
-        );
-        struct Paramstruct* temp = g->paramlist;
-        while(temp){
-            printf("(%s,%d)", temp->name, temp->type);
-            temp = temp->next;
-        }
-        printf("\n");
-        g = g->next;
-    }
-}
-
-
-// Print Local Symbol Table
-void printLSymbolTable(struct Lsymbol * l ){
-    struct Lsymbol * t = l;
-    printf("name | type | size | binding |\n");
-    while(t){
-        printf("%s | %d | %d | \n", t->name, t->type, t->binding);
-        t = t->next;
-    }
-}
-
-
-// Checks if a node is of a certain type
-void check(int type1, int type2, char * mssg){
-    if ( type2 == invalidType){
-        printf("Undeclared %s\n", mssg);
-        exit(1);
-    }
-    if ( type1 != type2 ){
-        printf("%s\n", mssg);
-        printf("Type Mismatch Error\n");
-        exit(1);
-    }
-}
-
-void checkFDec(struct tnode ** c, struct Gsymbol *  funcEntry){
-    if ( funcEntry->type != c[0]->type ){
-        printf("Return type mismatch\n");
-        exit(1);
-    }
-    if ( c[2] != NULL ){
-        compareParamList(c[2], funcEntry->paramlist );
-    }
-
-    struct Paramstruct * p = funcEntry->paramlist;
-    while ( p ){
-        if ( p->checked == 0 ){
-            printf("Variable in Declaration not found in Definition: %s\n", p->name);
-            exit(1);
-        }
-        p = p->next;
-    }
-}
-
-// Compare ParamList
-void compareParamList(struct tnode * t, struct Paramstruct *paramlist){
-    if ( t -> nodetype == connectorNode ) {
-        for ( int i=0; i< t->childcount; i++ )
-            compareParamList( t->children[i], paramlist );
-    }
-    if ( t -> nodetype == paramNode ) {
-        struct Paramstruct* entry = searchParamList( paramlist, t->children[1]->varname );
-        if ( entry == NULL ){
-            printf("Function Parameter not found: %s\n", t->children[1]->varname);
-            exit(1);
-        }
-        if ( entry -> checked ){
-            printf("Variable declared twice/ Function declared twice: %s\n", t->children[1]->varname);
-            exit(1);
-        }
-        if ( entry -> type != t->children[0]->type ){
-            printf("Type Mismatch in Function Declaration: %s\n", t->children[1]->varname);
-            exit(1);
-        }
-        entry->checked = 1;
-    }
-}
-
 /*Creates and initializes a new node in the expression tree*/
 struct tnode* createTree(   int val, 
                             int vartype, 
@@ -288,7 +59,12 @@ struct tnode* createTree(   int val,
                         break;
         
         case FDefNode:  funcEntry = GLookup(children[1]->varname);
-                        if ( funcEntry == NULL ) {
+                        printf("%s\n", children[1]->varname);
+                        if ( strcmp(children[1]->varname, "main")==0 ){
+                            temp->Gentry = funcEntry;
+                            break;
+                        }
+                        if ( funcEntry == NULL  ) {
                             printf("Declare Function in Header: %s\n", children[1]->varname);
                             exit(1);
                         }
@@ -305,6 +81,145 @@ struct tnode* createTree(   int val,
     return temp;
 }
 
+// ------------------GLOBAL SYSTEM TABLE------------------------------------------------------------
+
+void GInstall(char *name, int type, int size){
+
+
+    // Error when duplicate variable names
+    if ( GLookup(name) != NULL ){ 
+        printf("Variable redeclared!\n"); 
+        exit(1); 
+    }
+
+    struct Gsymbol * temp = (struct Gsymbol *)malloc(sizeof(struct Gsymbol));
+    temp->name = (char*)malloc(32*sizeof(char));
+    strcpy(temp->name, name);
+    temp->size = size;
+    temp->type = type;
+    temp->binding = SP;
+    temp->flabel = -1;
+    temp->next = NULL;
+    temp->paramlist = NULL;
+    SP += size;
+
+    // Inserting in a linked list
+    if ( symbolTable == NULL ){
+        symbolTable = temp;
+    }
+    else {
+        struct Gsymbol * tail = symbolTable;
+        while ( tail->next != NULL ){ 
+            tail = tail->next;
+        }
+        tail->next = temp;
+    }
+}
+
+struct Gsymbol *GLookup(char * name){
+    struct Gsymbol * ptr = symbolTable;
+    while ( ptr ){
+        if ( strcmp(name, ptr->name) == 0 ) return ptr;
+        ptr = ptr->next;
+    }
+    return NULL;
+}
+
+void setGTypes(struct tnode* t, int type, struct Gsymbol* paramHead){
+    if ( t->nodetype == connectorNode ){
+        setGTypes( t -> children[0], type, paramHead);
+        setGTypes( t -> children[1], type, paramHead);
+    }
+    else if( t->nodetype == idNode ){
+        GInstall( t->varname, type, 1);
+        t->Gentry = GLookup(t->varname);
+        t->type = type;
+    }
+    else if( t->nodetype == arrTypeNode ){
+        GInstall( t->children[0]->varname, type, t->children[1]->val);
+        t->children[0]->Gentry = GLookup(t->children[0]->varname);
+        t->children[0]->type = type;
+    }
+    else if( t->nodetype == funcTypeGDeclNode ){
+        GInstall( t->children[0]->varname, type, 0);
+        t->children[0]->Gentry = GLookup(t->children[0]->varname);
+        t->children[0]->type = type;
+        if ( t->children[1] )
+            setGTypes( t -> children[1], type, t->children[0]->Gentry);
+    }
+    else if( t->nodetype == paramNode ){
+        struct Paramstruct * param = (struct Paramstruct*)malloc(sizeof(struct Paramstruct));
+        param->name = (char*)malloc(sizeof(char)*20);
+        strcpy(param->name, t->children[1]->varname);
+        param->type = t->children[0]->type;
+        param->checked = 0;
+        param->next = NULL;
+        insertIntoParamList(paramHead, param);
+    }
+    // else if( t->nodetype == arr2dTypeNode ){
+    //     Install( t->children[0]->varname, type, t->children[1]->val, t->children[2]->val);
+    //     t->children[0]->Gentry = GLookup(t->children[0]->varname);
+    //     t->children[0]->type = type;
+    // }
+    else{
+        printf("Invalid variable in declarations!\n");
+        exit(1);
+    }
+}
+
+void printGSymbolTable(){
+    struct Gsymbol * g = symbolTable;
+    printf("name | type | size | binding | paramlist\n");
+    while(g){
+        printf("%s | %d | %d | %d | ", 
+            g->name, g->type, g->size, g->binding 
+        );
+        struct Paramstruct* temp = g->paramlist;
+        while(temp){
+            printf("(%s,%d)", temp->name, temp->type);
+            temp = temp->next;
+        }
+        printf("\n");
+        g = g->next;
+    }
+}
+
+void check(int type1, int type2, char * mssg){
+    if ( type2 == invalidType){
+        printf("Undeclared %s\n", mssg);
+        exit(1);
+    }
+    if ( type1 != type2 ){
+        printf("%s\n", mssg);
+        printf("Type Mismatch Error\n");
+        exit(1);
+    }
+}
+
+// ------------------------LOCAL SYMBOL TABLE-------------------------------------------------------
+
+struct Lsymbol * LInstall(char *name, int type, struct tnode* head){
+
+    struct Lsymbol * cur = (struct Lsymbol *)malloc(sizeof(struct Lsymbol));
+    cur->name = (char*)malloc(sizeof(char)*20);
+    strcpy(cur->name, name);
+    cur->type = type;
+    cur->binding = -1;
+    cur->next = NULL;
+
+    if ( head->Lentry == NULL ){
+        head -> Lentry = cur;
+    }
+    else{
+        struct Lsymbol* temp = head->Lentry;
+        while ( temp->next ){
+            temp = temp->next;
+        }
+        temp -> next = cur;
+    }
+
+    return cur;
+}
 
 void setLTypes(int type, struct tnode * t, struct tnode* head){
     if ( t->nodetype == connectorNode ){
@@ -315,6 +230,103 @@ void setLTypes(int type, struct tnode * t, struct tnode* head){
         struct Lsymbol * l = LInstall( t->varname, type, head );
         t->Lentry = l;
         t->type = type;
+    }
+}
+
+void printLSymbolTable(struct Lsymbol * l ){
+    struct Lsymbol * t = l;
+    printf("name| type |binding |\n");
+    while(t){
+        printf("%s   | %d  | %d  | \n", t->name, t->type, t->binding);
+        t = t->next;
+    }
+}
+
+struct Lsymbol * joinLsymbols(struct Lsymbol * Lentry1, struct Lsymbol * Lentry2){
+    struct Lsymbol * t = Lentry1;
+    while (t->next){
+        t = t->next;
+    }
+    t->next = Lentry2;
+    return Lentry1;
+}
+
+// ---------------------------FUNC DECL-------------------------------------------------------------
+
+void checkFDec(struct tnode ** c, struct Gsymbol *  funcEntry){
+    if ( funcEntry->type != c[0]->type ){
+        printf("Return type mismatch\n");
+        exit(1);
+    }
+    if ( c[2] != NULL ){
+        compareParamList(c[2], funcEntry->paramlist );
+    }
+
+    struct Paramstruct * p = funcEntry->paramlist;
+    while ( p ){
+        if ( p->checked == 0 ){
+            printf("Variable in Declaration not found in Definition: %s\n", p->name);
+            exit(1);
+        }
+        p = p->next;
+    }
+}
+
+// ---------------------------PARAM LIST------------------------------------------------------------
+
+void insertIntoParamList(struct Gsymbol* paramHead, struct Paramstruct* cur){
+    
+    if ( paramHead->paramlist == NULL ){
+        paramHead->paramlist = cur;
+    }
+    else {
+        struct Paramstruct* temp = paramHead->paramlist;
+        while ( temp->next != NULL ){ 
+            if ( strcmp(temp->name, cur->name) == 0 ){
+                printf("Variable Duplicate : %s\n", cur->name);
+                exit(1);
+            }
+            temp = temp->next;
+        }
+        if ( strcmp(temp->name, cur->name) == 0 ){
+            printf("Variable Duplicate : %s\n", cur->name);
+            exit(1);
+        }
+        temp->next = cur;
+    }
+}
+
+struct Paramstruct* searchParamList(struct Paramstruct* head, char* name){
+    struct Paramstruct* temp = head;
+    while ( temp != NULL ){ 
+        if ( strcmp(temp->name, name) == 0 ){
+            return temp;
+        }
+        temp = temp->next;
+    }
+    return NULL;
+}
+
+void compareParamList(struct tnode * t, struct Paramstruct *paramlist){
+    if ( t -> nodetype == connectorNode ) {
+        for ( int i=0; i< t->childcount; i++ )
+            compareParamList( t->children[i], paramlist );
+    }
+    if ( t -> nodetype == paramNode ) {
+        struct Paramstruct* entry = searchParamList( paramlist, t->children[1]->varname );
+        if ( entry == NULL ){
+            printf("Function Parameter not found: %s\n", t->children[1]->varname);
+            exit(1);
+        }
+        if ( entry -> checked ){
+            printf("Variable declared twice/ Function declared twice: %s\n", t->children[1]->varname);
+            exit(1);
+        }
+        if ( entry -> type != t->children[0]->type ){
+            printf("Type Mismatch in Function Declaration: %s\n", t->children[1]->varname);
+            exit(1);
+        }
+        entry->checked = 1;
     }
 }
 
@@ -339,16 +351,7 @@ void addParamListToLsymbolTable(struct Paramstruct * pl, struct Lsymbol* table){
     }
 }
 
-struct Lsymbol * joinLsymbols(struct Lsymbol * Lentry1, struct Lsymbol * Lentry2){
-    struct Lsymbol * t = Lentry1;
-    while (t->next){
-        t = t->next;
-    }
-    t->next = Lentry2;
-    return Lentry1;
-}
-
-/*Prints the expression tree in a pre-order traversal */
+// ----------------------------PRINTING-------------------------------------------------------------
 void printTree(struct tnode* t, struct tnode* p, int depth){
     if ( t!= NULL ){
         for (int i=0;i<depth;i++) printf("-");
@@ -400,6 +403,8 @@ char * printNode( struct tnode* t ){
         case idNode: printf("%s : ", t->varname); return "Id";
     }
 }
+
+// -------------------------------------------------------------------------------------------------
 
 
 

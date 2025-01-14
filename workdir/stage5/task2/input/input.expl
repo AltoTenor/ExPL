@@ -21,9 +21,30 @@ int g(int a, int b, int c){
     end
 }
 
-int main(){
-    begin
-        read(n);
-        return 0;
-    end
+
+int main()
+{
+  decl
+    int r;
+  enddecl
+
+  begin
+    read(n);
+
+    i=0;
+    while(i<n) do
+      read(arr[i]);
+      i = i+1;
+    endwhile;
+
+    r = BubbleSort(0,n-1);
+
+    i=0;
+    while(i<n) do
+      write(arr[i]);
+      i = i+1;
+    endwhile;
+
+    return 0;
+  end
 }
