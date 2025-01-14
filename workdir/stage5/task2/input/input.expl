@@ -1,0 +1,29 @@
+decl
+  int f(int a, int b);
+  int g(int a, int b, int c);
+enddecl
+
+int f(int a, int b){
+    decl
+        int n;
+    enddecl
+    begin
+        read(a);
+    end
+}
+
+int g(int a, int b, int c){
+    decl
+        int n;
+    enddecl
+    begin
+        read(a);
+    end
+}
+
+int main(){
+    begin
+        read(n);
+        return 0;
+    end
+}
