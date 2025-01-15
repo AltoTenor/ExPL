@@ -70,7 +70,7 @@ struct Lsymbol * joinLsymbols(struct Lsymbol * Lentry1, struct Lsymbol * Lentry2
 /* FUNCTION VERIFICATION */
 void checkFDef(struct tnode ** c, struct Gsymbol *  funcEntry);
 // Checking all variables and statements are of valid types or not
-void checkVarTypes(struct tnode* t, struct Lsymbol * Lentry);
+void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, int retType);
 // Find type of the node in a tree
 int findType(struct tnode * t);
 
@@ -78,7 +78,7 @@ int findType(struct tnode * t);
 void insertIntoParamList(struct Gsymbol* paramHead, struct Paramstruct* cur);
 struct Paramstruct* searchParamList(struct Paramstruct* head, char* name);
 void compareParamList(struct tnode * t, struct Paramstruct *paramlist);
-void addParamListToLsymbolTable(struct Paramstruct * pl, struct Lsymbol* table);
+struct Lsymbol* addParamListToLsymbolTable(struct Paramstruct * pl, struct Lsymbol* table);
 
 /* Printing Tree Nodes */
 void printTree(struct tnode* t, struct tnode* p, int depth);

@@ -114,7 +114,7 @@ FuncBody : LdeclBlock Body {
         if ($1 != NULL ) ltemp = $1->Lentry;
         $$ = createTree(-1, invalidType, "", FBodyNode, alloc_2($1, $2), 2, NULL, ltemp );
     }
-    | Body { $$ = $1; }
+    | Body { $$ = createTree(-1, invalidType, "", FBodyNode, alloc_2(NULL, $1), 2, NULL, NULL ); }
 ;
 
 /* Local Function Declarations */
@@ -176,7 +176,7 @@ stmt : AsgStmt      { $$ = $1; }
 ;
 
 ReturnStmt: RETURN expr ';' {
-        $$ = createTree(-1, invalidType, "", returnNode , NULL, 0, NULL, NULL);
+        $$ = createTree(-1, invalidType, "", returnNode , alloc_1($2), 1, NULL, NULL);
     }
 ;
 

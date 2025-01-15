@@ -21,17 +21,19 @@ struct tnode* createTree(   int val,
     struct Gsymbol * funcEntry = NULL;
     temp = (struct tnode*)malloc(sizeof(struct tnode));
     temp->Gentry = Gentry;
+    temp->children = children;
+    temp->type = vartype;
+    temp->childcount = childcount;
+    temp->nodetype = nodetype;
+    temp->Lentry = Lentry;
     switch (nodetype){
-
         case strConstNode:
         case idNode:    temp->varname= (char*)malloc(12*sizeof(char));
                         strcpy(temp->varname, c);
                         break;
-
         case numNode:   temp->val = val;
                         break;
-                        
-        case FDefNode:  //Checks 
+        case FDefNode:  //Checks Function Decl match with Function Def
                         funcEntry = GLookup(children[1]->varname);
                         if ( strcmp(children[1]->varname, "main")!=0 ){
                             if ( funcEntry == NULL  ) {
@@ -41,21 +43,21 @@ struct tnode* createTree(   int val,
                             checkFDef(children, funcEntry);
                         }
                         temp->Gentry = funcEntry;
+                        children[1]->Gentry = funcEntry;
                         // Add parameters to local symbol table
                         
                         if (children[2] != NULL){
-                            addParamListToLsymbolTable(funcEntry->paramlist, Lentry);
+                            Lentry = addParamListToLsymbolTable(funcEntry->paramlist, Lentry);
                         }
-                        // Check this once !!
-                        // Make LST accessible to all body
-                        checkVarTypes(children[3]->children[1], Lentry);
+                        // Make LST accessible to all Body and skip the Local Declarations
+                        if ( strcmp(children[1]->varname, "main")!=0 )
+                            assignVarTypes(children[3]->children[1], Lentry, funcEntry->type);
+                        else   
+                            assignVarTypes(children[3]->children[1], Lentry, intType);
+
                         break;
     }
-    temp->children = children;
-    temp->type = vartype;
-    temp->childcount = childcount;
-    temp->nodetype = nodetype;
-    temp->Lentry = Lentry;
+    
     return temp;
 }
 
@@ -262,57 +264,49 @@ void checkFDef(struct tnode ** c, struct Gsymbol *  funcEntry){
     }
 }
 
-void checkVarTypes(struct tnode* t, struct Lsymbol * Lentry){
+void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, int retType){
     // Recursive Calls
-    char mssg[25];
     for (int i = 0; i < t->childcount; i++ ){
-        if (t->children[i]) checkVarTypes(t->children[i], Lentry);
+        if (t->children[i]) assignVarTypes(t->children[i], Lentry, retType);
     }
     switch (t->nodetype){
-        case idNode:{
-            struct Lsymbol * t1 = LLookup( t->varname , Lentry );
-            struct Gsymbol * t2 = GLookup( t->varname );
-            // printLSymbolTable(Lentry);
-            if ( t1 != NULL ) t->Lentry = t1;
-            else if ( t2 != NULL ) t->Gentry = t2;
-            else{
-                printf("Undeclared Variable: %s\n", t->varname);
-                exit(1);
-            }
-            break;
-        }
-        case arrTypeNode: {
-            check(t->children[1]->type, intType, "Indexing non-int address");
-            t->Lentry = t->children[0]->Lentry;
-            t->Gentry = t->children[0]->Gentry;
-            break;
-        }
-        case assignNode: {
-            // sprintf(mssg, "Variable: %s", t->children[0]->varname);
-            check(t->children[0]->type, t->children[1]->type, "Assignment Type Wrong");
-            break;
-        }
-        case derefNode: {
-            check( t->children[0]->type, intType, "Dereferencing non int address" );
-            t->Lentry = t->children[0]->Lentry;
-            t->Gentry = t->children[0]->Gentry;
-            t->type = findType(t->children[0]);
-            break;
-        }
+        case idNode:{       struct Lsymbol * t1 = LLookup( t->varname , Lentry );
+                            struct Gsymbol * t2 = GLookup( t->varname );
+                            // printLSymbolTable(Lentry);
+                            if ( t1 != NULL ) t->Lentry = t1;
+                            else if ( t2 != NULL ) t->Gentry = t2;
+                            else{
+                                printf("Undeclared Variable: %s\n", t->varname);
+                                exit(1);
+                            }
+                            break; }
+        case arrTypeNode:   check(t->children[1]->type, intType, "Indexing non-int address");
+                            t->Lentry = t->children[0]->Lentry;
+                            t->Gentry = t->children[0]->Gentry;
+                            break;
+                            
+        case assignNode:    check(t->children[0]->type, t->children[1]->type, "Assignment Type Wrong");
+                            break;
+
+        case derefNode:     check( t->children[0]->type, intType, "Dereferencing non int address" );
+                            t->Lentry = t->children[0]->Lentry;
+                            t->Gentry = t->children[0]->Gentry;
+                            t->type = findType(t->children[0]);
+                            break;
         case addNode:   
         case mulNode:   
         case divNode:   
-        case subNode:{   
-            check(t->children[0]->type, intType, "Mismatched operands");
-            check(t->children[1]->type, intType, "Mismatched operands");
-            break;
-        }
+        case subNode:       check(t->children[0]->type, intType, "Mismatched operands");
+                            check(t->children[1]->type, intType, "Mismatched operands");
+                            break;
         case ifNode:    
         case whileNode: 
-                        check(t->children[0]->type, boolType, "If / Loop Condition Not Boolean");
-                        break;
+                            check(t->children[0]->type, boolType, "If / Loop Condition Not Boolean");
+                            break;
         case dowhileNode:
         case repeatNode:    check(t->children[1]->type, boolType, "Loop Condition Not Boolean");
+                            break;
+        case returnNode:    check(t->children[0]->type, retType, "Return Type Does not match");
                             break;
     } 
 }
@@ -385,11 +379,12 @@ void compareParamList(struct tnode * t, struct Paramstruct *paramlist){
     }
 }
 
-void addParamListToLsymbolTable(struct Paramstruct * pl, struct Lsymbol* table){
+struct Lsymbol* addParamListToLsymbolTable(struct Paramstruct * pl, struct Lsymbol* table){
     struct Paramstruct * t1 = pl;
+    struct Lsymbol * head = table;
     struct Lsymbol * t2 = table;
 
-    while ( t2->next ){
+    while ( t2 && t2->next ){
         t2 = t2->next;
     }
 
@@ -400,10 +395,18 @@ void addParamListToLsymbolTable(struct Paramstruct * pl, struct Lsymbol* table){
         l->type = t1->type;
         l->binding = -1;
 
-        t2 -> next = l;
-        t2 = t2->next;
+        if ( t2 ){
+            t2 -> next = l;
+            t2 = t2->next;
+        }
+        else{
+            head = l;
+            t2 = head;
+        }
         t1 = t1->next;
     }
+
+    return head;
 }
 
 // ----------------------------PRINTING-------------------------------------------------------------
