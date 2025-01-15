@@ -2,7 +2,7 @@
     #include <stdlib.h>
     #include <stdio.h>
     #include "y.tab.h"
-    #include "exprtree.h"
+    #include "analyser.h"
     #include "codegen.h"
     int number;
     void yyerror(char const *);
@@ -55,11 +55,7 @@ digit [0-9]
 [\[\]&{}]   {   return *yytext; }
 
 ({letter})({letter}|{digit})* { 
-                struct Gsymbol * entry = GLookup(yytext);
-                if ( entry == NULL )
-                    yylval.no = createTree(-1, invalidType, yytext, idNode,  NULL , 0 , NULL, NULL);
-                else
-                    yylval.no = createTree(-1, intType, yytext, idNode,  NULL , 0 , entry, NULL);
+                yylval.no = createTree(-1, intType, yytext, idNode,  NULL , 0 , NULL, NULL);
                 return ID; }
 
 (\"(.)*\")  {   yylval.no = createTree(-1, strType, yytext, strConstNode,  NULL , 0 , NULL, NULL);

@@ -35,9 +35,9 @@ typedef enum {
 } NodeType;
 
 typedef enum{
-    strType,
-    intType,
-    boolType,
+    strType, // 0
+    intType, // 1
+    boolType,// 2
     invalidType
 } VarType;
 

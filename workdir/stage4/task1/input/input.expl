@@ -1,3 +1,5 @@
 decl
+    int a,b,c;
+    str d,e,f;
 enddecl
 write(mesg);

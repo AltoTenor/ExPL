@@ -2,7 +2,7 @@
     #include <stdlib.h>
     #include <stdio.h>
     #include <stddef.h>
-    #include "exprtree.h"
+    #include "analyser.h"
     #include "codegen.h"
     int yylex(void);
     int yyerror(char const *s);
@@ -43,11 +43,12 @@
 
 /* Program Root section */
 Program : GDeclBlock FDefBlock MainBlock {
-        $$ = createTree(-1, invalidType, "", rootNode,  alloc_3(NULL, $2, NULL) , 3 , NULL, NULL); 
-        printTree($2, NULL, 0);
+        $$ = createTree(-1, invalidType, "", rootNode,  alloc_3($1, $2, $3) , 3 , NULL, NULL); 
+        printTree($$, NULL, 0);
     }
     | GDeclBlock MainBlock {
-        $$ = createTree(-1, invalidType, "", rootNode,  alloc_2($1, NULL) , 2 , NULL, NULL); 
+        $$ = createTree(-1, invalidType, "", rootNode,  alloc_2($1, $2) , 2 , NULL, NULL); 
+        printTree($$, NULL, 0);
     }
     | MainBlock {
         $$ = $1;
@@ -95,7 +96,6 @@ FDefBlock : FDefBlock Fdef {
 ;
 Fdef : Type ID '(' ParamList ')' '{' FuncBody '}' {
         $$ = createTree(-1, invalidType, "", FDefNode, alloc_4($1, $2, $4, $7), 4, NULL, $7-> Lentry );
-        addParamListToLsymbolTable($2->Gentry->paramlist, $$-> Lentry);
         printLSymbolTable($$->Lentry);
     }
     | Type ID '(' ')' '{' FuncBody '}' {
@@ -112,7 +112,7 @@ MainBlock: INT MAIN '(' ')' '{' FuncBody '}' {
 FuncBody : LdeclBlock Body {
         struct Lsymbol * ltemp = NULL;
         if ($1 != NULL ) ltemp = $1->Lentry;
-        $$ = createTree(-1, invalidType, "", connectorNode, alloc_2($1, $2), 2, NULL, ltemp );
+        $$ = createTree(-1, invalidType, "", FBodyNode, alloc_2($1, $2), 2, NULL, ltemp );
     }
     | Body { $$ = $1; }
 ;
@@ -153,135 +153,104 @@ Type : INT { $$ = createTree(-1, intType, "", intTypeNode,  NULL , 0, NULL, NULL
 ;
 
 
-/* Parameters in Function Declaration */
+/* Main / Function Code */
 Body: START slist END { $$ = $2; }
 ;
 
 
-slist : slist stmt  {  } 
-    | stmt          {  }
+slist : slist stmt  { $$ = createTree(-1, invalidType, "",connectorNode,  alloc_2($1, $2), 2, NULL, NULL); } 
+    | stmt          { $$ = $1; }
 ;
 
-stmt : AsgStmt      {  } 
-    | InputStmt     {  } 
-    | OutputStmt    {  }
-    | IfStmt        {  }
-    | WhileStmt     {  }
-    | DoWhileStmt   {  }
-    | RepeatStmt    {  }
-    | ReturnStmt    {  }
-    | BREAK ';'     {  }
-    | CONTINUE ';'  {  }
-    | BRKP ';'      {  }
+stmt : AsgStmt      { $$ = $1; } 
+    | InputStmt     { $$ = $1; } 
+    | OutputStmt    { $$ = $1; }
+    | IfStmt        { $$ = $1; }
+    | WhileStmt     { $$ = $1; }
+    | DoWhileStmt   { $$ = $1; }
+    | RepeatStmt    { $$ = $1; }
+    | ReturnStmt    { $$ = $1; }
+    | BREAK ';'     { $$ = $1; }
+    | CONTINUE ';'  { $$ = $1; }
+    | BRKP ';'      { $$ = $1; }
 ;
 
 ReturnStmt: RETURN expr ';' {
-
+        $$ = createTree(-1, invalidType, "", returnNode , NULL, 0, NULL, NULL);
     }
 ;
 
 AsgStmt : identifier '=' expr ';' {
-            // $$ = createTree(-1, invalidType, "", assignNode , alloc_2($1, $3), 2, NULL);
-        }
+        $$ = createTree(-1, invalidType, "", assignNode , alloc_2($1, $3), 2, NULL, NULL);
+    }
 ;
 
 AsgStmt : identifier '=' STRING ';' {
-            // $$ = createTree(-1, invalidType, "", assignNode , alloc_2($1, $3), 2, NULL);
-        }
+        $$ = createTree(-1, invalidType, "", assignNode , alloc_2($1, $3), 2, NULL, NULL);
+    }
 ;
 
-identifier : ID { 
-    }
-    | ID '[' expr ']' {   
-    }
-    | ID '[' expr ']' '[' expr ']' {
+identifier : ID  { $$ = $1; }
+    | ID '[' expr ']' {
+        $$ = createTree(-1, intType , "", arrTypeNode,  alloc_2($1, $3), 2 , NULL, NULL);
     }
 ;
 
 
 InputStmt : READ '(' identifier ')' ';' {
-            // $$ = createTree(-1, invalidType, "", readNode, alloc_1($3), 1, NULL);
-        }
-        
+        $$ = createTree(-1, invalidType, "", readNode, alloc_1($3), 1, NULL, NULL);
+    }
 ;
 
 OutputStmt : WRITE '(' expr ')' ';'{
-            // $$ = createTree(-1, invalidType, "", writeNode, alloc_1($3), 1, NULL);
-        }
+        $$ = createTree(-1, invalidType, "", writeNode, alloc_1($3), 1, NULL, NULL);
+    }
 ;
 
 OutputStmt : WRITE '(' STRING ')' ';'{
-            // $$ = createTree(-1, invalidType, "", writeNode, alloc_1($3), 1, NULL);
-        }
+        $$ = createTree(-1, invalidType, "", writeNode, alloc_1($3), 1, NULL, NULL);
+    }
 ;
 
 IfStmt : IF '(' expr ')' THEN slist ELSE slist ENDIF ';' {
-            // $$ = createTree(-1, invalidType, "", ifNode, alloc_3($3, $6, $8), 3, NULL);
-        }
+        $$ = createTree(-1, invalidType, "", ifNode, alloc_3($3, $6, $8), 3, NULL, NULL);
+    }
     | IF '(' expr ')' THEN slist ENDIF ';' {
-            // $$ = createTree(-1, invalidType, "", ifNode, alloc_3($3, $6, NULL), 3, NULL);
-        }
+        $$ = createTree(-1, invalidType, "", ifNode, alloc_3($3, $6, NULL), 3, NULL, NULL);
+    }
 ;
 
 WhileStmt : WHILE '(' expr ')' DO slist ENDWHILE ';' {
-            // $$ = createTree(-1, invalidType, "", whileNode, alloc_2($3,$6), 2, NULL);
-        }
+        $$ = createTree(-1, invalidType, "", whileNode, alloc_2($3,$6), 2, NULL, NULL);
+    }
 ;
 
 DoWhileStmt : DO slist WHILE '(' expr ')' ';' {
-            // $$ = createTree(-1, invalidType, "", dowhileNode, alloc_2($2,$5), 2, NULL);
-        }
+        $$ = createTree(-1, invalidType, "", dowhileNode, alloc_2($2,$5), 2, NULL, NULL);
+    }
 ;
 
 RepeatStmt : REPEAT slist UNTIL '(' expr ')' ';' {
-            // $$ = createTree(-1, invalidType, "", repeatNode, alloc_2($2,$5), 2, NULL);
-        }
+        $$ = createTree(-1, invalidType, "", repeatNode, alloc_2($2,$5), 2, NULL, NULL);
+    }
 ;
 
-expr :  '(' expr ')' {
-
-    }
-    | expr '+' expr    {   
-    // $$ = createTree(-1, intType , "", addNode, alloc_2($1, $3), 2, NULL); 
-    }
-    | expr '*' expr     {   
-        // $$ = createTree(-1, intType , "", mulNode, alloc_2($1, $3), 2, NULL); 
-    }
-    | expr '-' expr     {   
-        // $$ = createTree(-1, intType , "", subNode, alloc_2($1, $3), 2, NULL); 
-    }
-    | expr '/' expr     {   
-        // $$ = createTree(-1, intType , "", divNode, alloc_2($1, $3), 2, NULL); 
-    }
-    | expr '%' expr     {   
-        // $$ = createTree(-1, intType , "", modNode, alloc_2($1, $3), 2, NULL); 
-    }
-    | expr GE expr      {   
-        // $$ = createTree(-1, boolType , "", geNode, alloc_2($1, $3), 2, NULL); 
-    }
-    | expr LE expr      {   
-        // $$ = createTree(-1, boolType , "", leNode, alloc_2($1, $3), 2, NULL); 
-    }
-    | expr LT expr      {   
-        // $$ = createTree(-1, boolType , "", ltNode, alloc_2($1, $3), 2, NULL); 
-    }
-    | expr GT expr      {   
-        // $$ = createTree(-1, boolType , "", gtNode, alloc_2($1, $3), 2, NULL); 
-    }
-    | expr NE expr      {   
-        // $$ = createTree(-1, boolType , "", neNode, alloc_2($1, $3), 2, NULL); 
-    }
-    | expr EQ expr      {   
-        // $$ = createTree(-1, boolType , "", eqNode, alloc_2($1, $3), 2, NULL); 
-    }
-    | '*' expr          {   
-        // $$ = createTree(-1, $2->type , "", derefNode, alloc_1($2), 1, NULL); 
-    }
-    | NUM               {  $$ = $1;  }
-    | identifier        {   
-        // $$ = createTree(-1, $1->Gentry->type , "", derefNode, alloc_1($1), 1, NULL); 
-    }
-    // | '&' identifier    { }
+expr : '(' expr ')'     {   $$ = $2; }
+    | expr '+' expr     {   $$ = createTree(-1, intType , "", addNode, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr '*' expr     {   $$ = createTree(-1, intType , "", mulNode, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr '-' expr     {   $$ = createTree(-1, intType , "", subNode, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr '/' expr     {   $$ = createTree(-1, intType , "", divNode, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr '%' expr     {   $$ = createTree(-1, intType , "", modNode, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr GE expr      {   $$ = createTree(-1, boolType , "", geNode, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr LE expr      {   $$ = createTree(-1, boolType , "", leNode, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr LT expr      {   $$ = createTree(-1, boolType , "", ltNode, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr GT expr      {   $$ = createTree(-1, boolType , "", gtNode, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr NE expr      {   $$ = createTree(-1, boolType , "", neNode, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr EQ expr      {   $$ = createTree(-1, boolType , "", eqNode, alloc_2($1, $3), 2, NULL, NULL); }
+    | '*' expr          {   $$ = createTree(-1, invalidType , "", derefNode, alloc_1($2), 1, NULL, NULL); }
+    | NUM               {   $$ = $1; }
+    | identifier        {   $$ = createTree(-1, invalidType , "", derefNode, alloc_1($1), 1, NULL, NULL); }
+    | '&' identifier    {   $$ = $2; }
     | identifier '(' ')' 
     | identifier '(' ArgList ')'
 ;

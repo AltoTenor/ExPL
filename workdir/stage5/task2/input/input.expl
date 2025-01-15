@@ -1,26 +1,29 @@
 decl
-  int f(int a, int b);
-  int g(int a, int b, int c);
+  int n,arr[10],i,j,dup, BubbleSort(int first, int last);
 enddecl
 
-int f(int a, int b){
-    decl
-        int n;
-    enddecl
-    begin
-        read(a);
-    end
-}
+int BubbleSort(int first, int last)
+{
+  decl
+    int temp;
+  enddecl
 
-int g(int a, int b, int c){
-    decl
-        int n;
-    enddecl
-    begin
-        read(a);
-    end
-}
+  begin
+    if(last > 0) then
 
+      if(arr[first] > arr[first+1]) then
+        temp = arr[first];
+        arr[first] = arr[first+1];
+        arr[first+1] = temp;
+      endif;
+
+      dup = BubbleSort(first+1, last);
+      dup = BubbleSort(first, last-1);
+    endif;
+
+    return 0;
+  end
+}
 
 int main()
 {
@@ -36,8 +39,6 @@ int main()
       read(arr[i]);
       i = i+1;
     endwhile;
-
-    r = BubbleSort(0,n-1);
 
     i=0;
     while(i<n) do

@@ -1,22 +1,6 @@
 decl
-   int a[10][10], b[10][10], ans[10][10], n, i, j;
+   int a,b,c;
 enddecl
-read(n);
-i=0;
-while ( i < n ) do
-    j=0;
-    while ( j < n ) do
-        read(a[i][j]);
-        j = j + 1;
-    endwhile; 
-    i = i+1;
-endwhile;
-i=0;
-while ( i < n ) do
-    j=0;
-    while ( j < n ) do
-        write(a[i][j]);
-        j = j + 1;
-    endwhile; 
-    i = i+1;
-endwhile;
+read(b);
+c = &a / 3;
+write(c);
