@@ -45,7 +45,7 @@ struct tnode* createTree(   int val,
 
 /* GLOBAL SYMBOL TABLE */
 // Creates a Global symbol table entry.
-void GInstall(char *name, int type, int size);
+void GInstall(char *name, int type, int size, int fl);
 // Returns a pointer to the symbol table entry for the variable, returns NULL otherwise.
 struct Gsymbol *GLookup(char * name);
 // Sets up the types in a global declaration
@@ -66,6 +66,8 @@ void setLTypes(int type, struct tnode* t, struct tnode* head);
 void printLSymbolTable(struct Lsymbol * l );
 // Join the two lists of Lsymbols
 struct Lsymbol * joinLsymbols(struct Lsymbol * Lentry1, struct Lsymbol * Lentry2);
+// Adding binding addresses for all symbols in LST
+void addBindingAddr(struct Lsymbol* Lentry);
 
 /* FUNCTION VERIFICATION */
 void checkFDef(struct tnode ** c, struct Gsymbol *  funcEntry);
@@ -73,6 +75,10 @@ void checkFDef(struct tnode ** c, struct Gsymbol *  funcEntry);
 void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, int retType);
 // Find type of the node in a tree
 int findType(struct tnode * t);
+
+// ARG LIST
+struct Paramstruct* fetchArgList(struct tnode * t);
+int verifyArgTypes(struct Paramstruct* argList, struct Paramstruct* paramList );
 
 /* PARAM LIST FUNCTIONS */
 void insertIntoParamList(struct Gsymbol* paramHead, struct Paramstruct* cur);
@@ -134,6 +140,8 @@ typedef enum {
     FDefNode = 46,
     FBodyNode = 48,
     returnNode = 52,
+    funcCallNode = 54,
+    argNode = 56,
 
     rootNode = 50,
 

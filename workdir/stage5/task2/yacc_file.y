@@ -13,6 +13,7 @@
     extern FILE *yyin;
     extern FILE *fp;
     extern int SP;
+    extern int globalFlabel;
     extern struct Gsymbol * symbolTable;
 %}
 
@@ -25,7 +26,7 @@
 %type <no> Fdef LdeclBlock ParamList Param Body LDecList LDecl  FuncBody
 %type <no> IdList
 %type <no> slist stmt AsgStmt InputStmt OutputStmt IfStmt WhileStmt DoWhileStmt RepeatStmt ReturnStmt
-%type <no> identifier expr
+%type <no> identifier expr ArgList
 
 %token <no> START END DECL ENDDECL BRKP MAIN RETURN
 %token <no> ID STR INT NUM STRING READ WRITE
@@ -104,7 +105,8 @@ Fdef : Type ID '(' ParamList ')' '{' FuncBody '}' {
     }
 ;
 /* Main Function */
-MainBlock: INT MAIN '(' ')' '{' FuncBody '}' {
+MainBlock: Type MAIN '(' ')' '{' FuncBody '}' {
+        if ( $1->type != intType ){ printf("Main not INT\n"); exit(1);}
         $$ = createTree(-1, invalidType, "", FDefNode, alloc_4($1, $2, NULL, $6), 4, NULL, $6 -> Lentry);
         printLSymbolTable($$->Lentry);
     }
@@ -251,12 +253,20 @@ expr : '(' expr ')'     {   $$ = $2; }
     | NUM               {   $$ = $1; }
     | identifier        {   $$ = createTree(-1, invalidType , "", derefNode, alloc_1($1), 1, NULL, NULL); }
     | '&' identifier    {   $$ = $2; }
-    | identifier '(' ')' 
-    | identifier '(' ArgList ')'
+    | identifier '(' ')' {
+        $$ = createTree(-1, invalidType , "", funcCallNode, alloc_2($1, NULL), 2, NULL, NULL);
+    }
+    | identifier '(' ArgList ')' {
+        $$ = createTree(-1, invalidType , "", funcCallNode, alloc_2($1, $3), 2, NULL, NULL);
+    }
 ;
 
-ArgList : ArgList ',' expr 
-    | expr
+ArgList : ArgList ',' expr {
+        $$ = createTree( -1, invalidType , "", argNode, alloc_2($1, $3), 2, NULL, NULL );
+    }
+    | expr {
+        $$ = createTree( -1, invalidType , "", argNode, alloc_1($1), 1, NULL, NULL );;
+    }
 ;
 
 %%
@@ -311,7 +321,7 @@ int main(int argc, char **argv) {
     }
     symbolTable = NULL;
     SP = 4096;
-
+    globalFlabel = 0;
     yyparse();
     // fprintf(fp, "JMP EXIT\n");
 

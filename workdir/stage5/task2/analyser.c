@@ -7,6 +7,7 @@
 struct Gsymbol * symbolTable;
 int SP;
 int *arr;
+int globalFlabel;
 
 /*Creates and initializes a new node in the expression tree*/
 struct tnode* createTree(   int val, 
@@ -49,6 +50,9 @@ struct tnode* createTree(   int val,
                         if (children[2] != NULL){
                             Lentry = addParamListToLsymbolTable(funcEntry->paramlist, Lentry);
                         }
+
+                        addBindingAddr(Lentry);
+
                         // Make LST accessible to all Body and skip the Local Declarations
                         if ( strcmp(children[1]->varname, "main")!=0 )
                             assignVarTypes(children[3]->children[1], Lentry, funcEntry->type);
@@ -63,7 +67,7 @@ struct tnode* createTree(   int val,
 
 // ------------------GLOBAL SYMBOL TABLE------------------------------------------------------------
 
-void GInstall(char *name, int type, int size){
+void GInstall(char *name, int type, int size, int fl){
 
     // printf("%s\n", name);
 
@@ -79,7 +83,7 @@ void GInstall(char *name, int type, int size){
     temp->size = size;
     temp->type = type;
     temp->binding = SP;
-    temp->flabel = -1;
+    temp->flabel = fl;
     temp->next = NULL;
     temp->paramlist = NULL;
     SP += size;
@@ -112,17 +116,17 @@ void setGTypes(struct tnode* t, int type, struct Gsymbol* paramHead){
         setGTypes( t -> children[1], type, paramHead);
     }
     else if( t->nodetype == idNode ){
-        GInstall( t->varname, type, 1);
+        GInstall( t->varname, type, 1, -1);
         t->Gentry = GLookup(t->varname);
         t->type = type;
     }
     else if( t->nodetype == arrTypeNode ){
-        GInstall( t->children[0]->varname, type, t->children[1]->val);
+        GInstall( t->children[0]->varname, type, t->children[1]->val, -1);
         t->children[0]->Gentry = GLookup(t->children[0]->varname);
         t->children[0]->type = type;
     }
     else if( t->nodetype == funcTypeGDeclNode ){
-        GInstall( t->children[0]->varname, type, 0);
+        GInstall( t->children[0]->varname, type, 0, globalFlabel++);
         t->children[0]->Gentry = GLookup(t->children[0]->varname);
         t->children[0]->type = type;
         if ( t->children[1] )
@@ -176,6 +180,15 @@ void check(int type1, int type2, char * mssg){
         printf("%s\n", mssg);
         printf("Type Mismatch Error\n");
         exit(1);
+    }
+}
+
+void addBindingAddr(struct Lsymbol* Lentry){
+    int addr = 1;
+    struct Lsymbol* t = Lentry;
+    while (t){
+        t->binding = addr++;
+        t = t->next;
     }
 }
 
@@ -280,12 +293,14 @@ void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, int retType){
                                 exit(1);
                             }
                             break; }
-        case arrTypeNode:   check(t->children[1]->type, intType, "Indexing non-int address");
+        case arrTypeNode:   // Checking Index Type
+                            check(t->children[1]->type, intType, "Indexing non-int address");
+                            // Assigning Type information
                             t->Lentry = t->children[0]->Lentry;
                             t->Gentry = t->children[0]->Gentry;
                             break;
                             
-        case assignNode:    check(t->children[0]->type, t->children[1]->type, "Assignment Type Wrong");
+        case assignNode:    check(findType(t->children[0]), t->children[1]->type, "Assignment Type Wrong");
                             break;
 
         case derefNode:     check( t->children[0]->type, intType, "Dereferencing non int address" );
@@ -308,17 +323,62 @@ void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, int retType){
                             break;
         case returnNode:    check(t->children[0]->type, retType, "Return Type Does not match");
                             break;
+        case funcCallNode:{ t->type = findType(t->children[0]);
+                            if (t->children[1]){
+                                struct Paramstruct* argList = fetchArgList(t->children[1]); 
+                                if ( verifyArgTypes(argList, t->children[0]->Gentry->paramlist)  == 0 ){
+                                    printf("Wrong Args passed to %s\n", t->children[0]->Gentry->name);
+                                    exit(1);
+                                } 
+                            }
+                            break;
+                            }
     } 
 }
 
 int findType(struct tnode * t){
-    if ( t->Gentry != NULL ){
-        return t->Gentry->type;
-    }
     if ( t->Lentry != NULL ){
         return t->Lentry->type;
     }
+    if ( t->Gentry != NULL ){
+        return t->Gentry->type;
+    }
     return invalidType;
+}
+
+// ---------------------------ARGUMENT LIST---------------------------------------------------------
+
+struct Paramstruct* fetchArgList(struct tnode * t){
+
+    if ( t->childcount == 2 ){
+        struct Paramstruct* head = fetchArgList(t->children[0]);
+        struct Paramstruct* cur = head;
+        while ( cur->next ) cur = cur->next;
+
+        struct Paramstruct* temp = (struct Paramstruct*)malloc(sizeof(struct Paramstruct));
+        temp->type = t->children[1]->type;
+        cur->next = temp;
+        return head;
+    }
+    else{
+        struct Paramstruct* temp = (struct Paramstruct*)malloc(sizeof(struct Paramstruct));
+        temp->type = t->children[0]->type;
+
+        return temp;
+    }
+}
+
+int verifyArgTypes(struct Paramstruct* argList, struct Paramstruct* paramList ){
+    struct Paramstruct* p1 = argList;
+    struct Paramstruct* p2 = paramList;
+
+    while (p1 && p2){
+        if ( p2->type != p1->type ) return 0;
+        p1 = p1->next;
+        p2 = p2->next;
+    }
+    if ( p1 || p2 ) return 0;
+    return 1;
 }
 
 // ---------------------------PARAM LIST------------------------------------------------------------
@@ -411,7 +471,7 @@ struct Lsymbol* addParamListToLsymbolTable(struct Paramstruct * pl, struct Lsymb
 
 // ----------------------------PRINTING-------------------------------------------------------------
 void printTree(struct tnode* t, struct tnode* p, int depth){
-    if ( t!= NULL ){
+    if ( t!= NULL && t->nodetype != GDeclNode){
         for (int i=0;i<depth;i++) printf("- ");
         // if (p) printf("%s -> %s\n", printNode(p), printNode(t) );
         // else printf("%s\n", printNode(t) );
@@ -462,6 +522,8 @@ char * printNode( struct tnode* t ){
         case LDeclNode: return "LDeclNode";
         case returnNode: return "returnNode";
         case FBodyNode: return "FBodyNode";
+        case funcCallNode: return "funcCallNode";
+        case argNode: return "argNode";
         case strConstNode: printf("%s : ", t->varname); return "strConst";
         case numNode: printf("%d : ", t->val); return "Num";
         case idNode: printf("%s : ", t->varname); return "Id";
