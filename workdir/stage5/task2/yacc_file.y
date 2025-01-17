@@ -322,6 +322,7 @@ int main(int argc, char **argv) {
     symbolTable = NULL;
     SP = 4096;
     globalFlabel = 0;
+    // initialize();
     yyparse();
     // fprintf(fp, "JMP EXIT\n");
 

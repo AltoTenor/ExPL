@@ -2,6 +2,8 @@
     "files.associations": {
         "string.h": "c",
         "typeinfo": "c",
-        "analyser.h": "c"
-    }
+        "analyser.h": "c",
+        "stdio.h": "c"
+    },
+    "svg.preview.background": "editor"
 }

@@ -96,7 +96,7 @@
 // }
 
 // int addr( struct tnode * t ){
-//     struct Gsymbol * entry = Lookup(t->varname);
+//     struct Gsymbol * entry = GLookup(t->varname);
 //     if ( entry == NULL ){
 //         printf("Error: No symbol entry\n");
 //         exit(1);
@@ -109,15 +109,26 @@
 
 //     int i=-2,j=-2, k=-2;
 //     if ( t != NULL ){
-//         // printf("%d %d \n", t->nodetype, t->nodetype & 1);
+//         printf("%d %d \n", t->nodetype, t->nodetype & 1);
 //         if( (t->nodetype & 1) == 0 ){
 //             switch( t->nodetype ){
-//                 // Just a connector node ( just propagates call )
 //                 case connectorNode: {
 //                     codeGen(t->children[0], jmpLabels);
 //                     codeGen(t->children[1], jmpLabels);
 //                     break;
 //                 }
+                
+//                 case FDefNode: {
+//                     codeGen(t->children[3], jmpLabels);
+//                     break;
+//                 }
+
+//                 case FBodyNode: {
+//                     codeGen(t->children[1], jmpLabels);
+//                     break;
+//                 }
+                
+                
 //                 // Adding a breakpoint
 //                 case brkpNode: {
 //                     fprintf(fp, "BRKP\n" );
@@ -254,11 +265,19 @@
 //                     break;
 //                 }
 
-//                 // Value read from memory location (pointed by this node ) to new register
 //                 case idNode :{       
-//                     i = getReg();   
-//                     // printf("%d\n", addr(t));
-//                     fprintf(fp, "MOV R%d, %d\n", i, addr(t) );
+//                     i = getReg();
+//                     if ( t->Lentry != NULL ){
+//                     printf("%p\n", fp);
+//                         fprintf(fp, "MOV R%d, BP\n", i);
+//                         fprintf(fp, "ADD R%d, %d\n", i, t->Lentry->binding );
+//                     }
+//                     else if( t->Gentry != NULL )
+//                         fprintf(fp, "MOV R%d, %d\n", i, t->Gentry->binding  );
+//                     else{
+//                         printf("Error: No symbol entry\n");
+//                         exit(1);
+//                     }
 //                     break;
 //                 }
 
@@ -273,19 +292,19 @@
 //                 }
 
 //                 // Value read from memory location (pointed by this node ) to new register
-//                 case arr2dTypeNode :{       
-//                     int temp_n = t->children[0]->Gentry->size[0];
-//                     i = getReg();
-//                     j = codeGen(t->children[1], jmpLabels);
-//                     k = codeGen(t->children[2], jmpLabels);
-//                     fprintf(fp, "MOV R%d, %d\n", i, addr(t->children[0]) );
-//                     fprintf(fp, "MUL R%d, %d\n", j, temp_n );
-//                     fprintf(fp, "ADD R%d, R%d\n", j, k );
-//                     fprintf(fp, "ADD R%d, R%d\n", i, j );
-//                     freeReg();
-//                     freeReg();
-//                     break;
-//                 }
+//                 // case arr2dTypeNode :{       
+//                 //     int temp_n = t->children[0]->Gentry->size[0];
+//                 //     i = getReg();
+//                 //     j = codeGen(t->children[1], jmpLabels);
+//                 //     k = codeGen(t->children[2], jmpLabels);
+//                 //     fprintf(fp, "MOV R%d, %d\n", i, addr(t->children[0]) );
+//                 //     fprintf(fp, "MUL R%d, %d\n", j, temp_n );
+//                 //     fprintf(fp, "ADD R%d, R%d\n", j, k );
+//                 //     fprintf(fp, "ADD R%d, R%d\n", i, j );
+//                 //     freeReg();
+//                 //     freeReg();
+//                 //     break;
+//                 // }
 
 //                 // Read() from console to memory location (pointed by children[0] and only child)
 //                 case readNode:{      

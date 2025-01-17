@@ -1,0 +1,27 @@
+decl
+  int mul(int a, int b);
+enddecl
+
+int mul(int a, int b){
+  decl
+    int c;
+  enddecl
+  begin
+    c = a*b;
+    return c;
+  end
+}
+
+int main()
+{
+  decl
+    int a, b, c;
+  enddecl
+  begin
+    read(b);
+    read(c);
+    a = mul( b,  c);
+    write(a);
+    return 0;
+  end
+}
