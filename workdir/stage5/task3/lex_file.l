@@ -14,45 +14,51 @@ digit [0-9]
 
 
 %%
-(breakpoint) {  yylval.no = createTree(-1, invalidType, "", brkpNode,  NULL , 0 , NULL, NULL);return BRKP; }
+(breakpoint)        {  yylval.no = createTree(-1, invalidType, "", brkpNode,  NULL , 0 , NULL, NULL);return BRKP; }
 
-(begin)     {   return START; }
-(end)       {   return END; }
+(begin)             {   return START; }
+(end)               {   return END; }
 
-(decl)      {   return DECL; }
-(enddecl)   {   return ENDDECL; }
-(int)       {   return INT; }
-(str)       {   return STR; }
+(decl)              {   return DECL; }
+(enddecl)           {   return ENDDECL; }
+(int)               {   return INT; }
+(str)               {   return STR; }
 
-(main)      {   yylval.no = createTree(-1, invalidType, "main", idNode,  NULL , 0 , NULL, NULL); return MAIN; }
-(return)    {   return RETURN; }
+(main)              {   yylval.no = createTree(-1, invalidType, "main", idNode,  NULL , 0 , NULL, NULL); return MAIN; }
+(return)            {   return RETURN; }
 
-(read)      {   return READ; }
-(write)     {   return WRITE; }
+(read)              {   return READ; }
+(write)             {   return WRITE; }
 
-(if)        {   return IF; }
-(endif)     {   return ENDIF; }
-(then)      {   return THEN; }
-(else)      {   return ELSE; }
+(if)                {   return IF; }
+(endif)             {   return ENDIF; }
+(then)              {   return THEN; }
+(else)              {   return ELSE; }
 
-(while)     {   return WHILE; }
-(do)        {   return DO; } 
-(endwhile)  {   return ENDWHILE; }
-(repeat)    {   return REPEAT; }
-(until)     {   return UNTIL; }
+(while)             {   return WHILE; }
+(do)                {   return DO; } 
+(endwhile)          {   return ENDWHILE; }
+(repeat)            {   return REPEAT; }
+(until)             {   return UNTIL; }
 
-(break)     {   yylval.no = createTree(-1, invalidType, "", breakNode,  NULL , 0 , NULL, NULL); return BREAK; }
-(continue)  {   yylval.no = createTree(-1, invalidType, "", contNode,  NULL , 0 , NULL, NULL); return CONTINUE; }
+(break)             {   yylval.no = createTree(-1, invalidType, "", breakNode,  NULL , 0 , NULL, NULL); return BREAK; }
+(continue)          {   yylval.no = createTree(-1, invalidType, "", contNode,  NULL , 0 , NULL, NULL); return CONTINUE; }
                 
-(!=)        {   return NE; }
-(==)        {   return EQ; }
-(<=)        {   return LE; }
-(<)         {   return LT; }
-(>=)        {   return GE; }
-(>)         {   return GT; }
-[ \t\n]     {   }
-[+-/*=();%] {   return *yytext; }
-[\[\]&{}]   {   return *yytext; }
+(!=)                {   return NE; }
+(==)                {   return EQ; }
+(<=)                {   return LE; }
+(<)                 {   return LT; }
+(>=)                {   return GE; }
+(>)                 {   return GT; }
+
+(and)|(AND)|(&&)    {   return AND; }
+(or)|(OR)|(\|\|)    {   return OR; }
+
+
+
+[ \t\n]             {   }
+[+-/*=();%]         {   return *yytext; }
+[\[\]&{}]           {   return *yytext; }
 
 ({letter})({letter}|{digit})* { 
                 yylval.no = createTree(-1, intType, yytext, idNode,  NULL , 0 , NULL, NULL);

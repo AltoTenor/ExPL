@@ -32,8 +32,9 @@
 %token <no> ID STR INT NUM STRING READ WRITE
 %token <no> IF ENDIF ELSE THEN  
 %token <no> REPEAT UNTIL WHILE DO ENDWHILE BREAK CONTINUE
-%token <no> GE GT LE LT EQ NE
-%nonassoc GE GT LE LT EQ NE
+%token <no> GE GT LE LT EQ NE AND OR
+%left AND OR 
+%nonassoc GE GT LE LT EQ NE 
 %left '+' '-'
 %left '*' '/' '%'
 
@@ -46,17 +47,27 @@
 Program : GDeclBlock FDefBlock MainBlock {
         $$ = createTree(-1, invalidType, "", rootNode,  alloc_3($1, $2, $3) , 3 , NULL, NULL); 
         printTree($$, NULL, 0);
-        codeGen($2, (int *)malloc(sizeof(int)*2), 0);
-        codeGen($3, (int *)malloc(sizeof(int)*2), 0);
+        struct Context * c = (struct Context *)malloc(sizeof(struct Context));
+        c->jumpLabels = (int *)malloc(sizeof(int)*2);
+        c->mainFunc = 0;
+        codeGen($2, c);
+        c->mainFunc = 1;
+        codeGen($3, c);
     }
     | GDeclBlock MainBlock {
         $$ = createTree(-1, invalidType, "", rootNode,  alloc_2($1, $2) , 2 , NULL, NULL); 
         // printTree($$, NULL, 0);
-        codeGen($2, (int *)malloc(sizeof(int)*2), 0);
+        struct Context * c = (struct Context *)malloc(sizeof(struct Context));
+        c->jumpLabels = (int *)malloc(sizeof(int)*2);
+        c->mainFunc = 1;
+        codeGen($2, c);
     }
     | MainBlock {
         $$ = $1;
-        codeGen($1, (int *)malloc(sizeof(int)*2), 0);
+        struct Context * c = (struct Context *)malloc(sizeof(struct Context));
+        c->jumpLabels = (int *)malloc(sizeof(int)*2);
+        c->mainFunc = 1;
+        codeGen($1, c);
     }
 ;
 
@@ -256,6 +267,8 @@ expr : '(' expr ')'     {   $$ = $2; }
     | expr GT expr      {   $$ = createTree(-1, boolType , "", gtNode, alloc_2($1, $3), 2, NULL, NULL); }
     | expr NE expr      {   $$ = createTree(-1, boolType , "", neNode, alloc_2($1, $3), 2, NULL, NULL); }
     | expr EQ expr      {   $$ = createTree(-1, boolType , "", eqNode, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr AND expr     {   $$ = createTree(-1, boolType , "", andNode, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr OR expr      {   $$ = createTree(-1, boolType , "", orNode, alloc_2($1, $3), 2, NULL, NULL); }
     | '*' expr          {   $$ = createTree(-1, invalidType , "", derefNode, alloc_1($2), 1, NULL, NULL); }
     | NUM               {   $$ = $1; }
     | identifier        {   $$ = createTree(-1, invalidType , "", derefNode, alloc_1($1), 1, NULL, NULL); }

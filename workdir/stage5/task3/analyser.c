@@ -522,6 +522,8 @@ char * printNode( struct tnode* t ){
         case FBodyNode: return "FBodyNode";
         case funcCallNode: return "funcCallNode";
         case argNode: return "argNode";
+        case orNode: return "orNode";
+        case andNode: return "andNode";
         case strConstNode: printf("%s : ", t->varname); return "strConst";
         case numNode: printf("%d : ", t->val); return "Num";
         case idNode: printf("%s : ", t->varname); return "Id";

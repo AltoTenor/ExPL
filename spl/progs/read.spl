@@ -22,7 +22,7 @@ inline "IN";
 
 // from P0 the value is moved to memory location referenced by address;
 
-[[PTBR+2*(userSP-1)/512]*512+(userSP-1)%512] = 0;
+[[PTBR+2*((userSP-1)/512)]*512+(userSP-1)%512] = 0;
 
 //return value is stored in physical address that userSP-1 maps to
 

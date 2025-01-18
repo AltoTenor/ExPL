@@ -1,5 +1,10 @@
+struct Context{
+    int * jumpLabels;
+    int mainFunc;
+};
+
 // Generates the target code for the given syntax tree
-int codeGen( struct tnode *t , int* jmpLabels, int main);
+int codeGen( struct tnode *t , struct Context * c);
 
 // Allocates a free register for use in code generation
 int getReg();

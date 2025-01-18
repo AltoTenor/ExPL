@@ -101,7 +101,7 @@ int findParam(struct Paramstruct * p, char * name){
 }
 
 /* Code Generation to XSM */
-int codeGen( struct tnode *t , int* jmpLabels, int main) {
+int codeGen( struct tnode *t , struct Context * c) {
 
     int i=-2,j=-2, k=-2;
     if ( t != NULL ){
@@ -111,8 +111,8 @@ int codeGen( struct tnode *t , int* jmpLabels, int main) {
 
                 // Checked -
                 case connectorNode: {
-                    codeGen(t->children[0], jmpLabels, main);
-                    codeGen(t->children[1], jmpLabels, main);
+                    codeGen(t->children[0], c);
+                    codeGen(t->children[1], c);
                     break;
                 }
                 // Checked -
@@ -128,12 +128,12 @@ int codeGen( struct tnode *t , int* jmpLabels, int main) {
                             inc++;
                             l = l->next;
                         }
-                        fprintf(fp, "ADD SP, %d\n", inc);
+                        fprintf(fp, "ADD SP, %d\n", inc); 
 
-                        codeGen(t->children[3], jmpLabels, 1);
+                        c->mainFunc = 1;
+                        codeGen(t->children[3], c);
 
-                        for (int x=0;x<inc;x++)
-                            fprintf(fp, "POP R0\n");
+                        for (int x=0;x<inc;x++) fprintf(fp, "POP R0\n");
 
                         fprintf(fp, "JMP EXIT\n");
                     }
@@ -161,13 +161,13 @@ int codeGen( struct tnode *t , int* jmpLabels, int main) {
                         freeReg();
 
                         // Function Body Code Generated
-                        codeGen(t->children[3], jmpLabels, 0);
+                        c->mainFunc = 0;
+                        codeGen(t->children[3], c);
                         // Calculate the return expression and store the value in [BP-2]
                         // Done by Return Node
 
                         // Pop out the local variables from the stack
-                        for (int x=0;x<inc;x++)
-                            fprintf(fp, "POP R0\n");
+                        for (int x=0;x<inc;x++) fprintf(fp, "POP R0\n");
 
                         // set BP to the old value of BP in the stack
                         fprintf(fp, "POP BP\n");
@@ -177,7 +177,7 @@ int codeGen( struct tnode *t , int* jmpLabels, int main) {
                 }
                 // Checked -
                 case FBodyNode: {
-                    codeGen(t->children[1], jmpLabels, main);
+                    codeGen(t->children[1], c);
                     break;
                 }
                 
@@ -189,8 +189,8 @@ int codeGen( struct tnode *t , int* jmpLabels, int main) {
 
                 // Assignment Operator ( evaluates RHS expression and frees that register )
                 case assignNode:{
-                    i = codeGen(t->children[0], jmpLabels, main);
-                    j = codeGen(t->children[1], jmpLabels, main);
+                    i = codeGen(t->children[0], c);
+                    j = codeGen(t->children[1], c);
                     fprintf(fp, "MOV [R%d], R%d\n", i, j );
                     freeReg();
                     freeReg();
@@ -205,17 +205,17 @@ int codeGen( struct tnode *t , int* jmpLabels, int main) {
                     if (elseExists) l2 = getLabel();
 
                     // Code for condition check
-                    i = codeGen(t->children[0], jmpLabels, main);
+                    i = codeGen(t->children[0], c);
                     // If condition is not true then jump to exit / else
                     fprintf(fp, "JZ  R%d, L%d\n", i, l1);
                     // If it is true then execute this part
-                    codeGen(t->children[1], jmpLabels, main);
+                    codeGen(t->children[1], c);
                     // After true part is done exit
                     if (elseExists) fprintf(fp, "JMP L%d\n", l2);
                     // Else/Exit label
                     fprintf(fp, "L%d:\n", l1 );
                     // Else exists
-                    codeGen(t->children[2], jmpLabels, main);
+                    codeGen(t->children[2], c);
                     // Exit label
                     if (elseExists) fprintf(fp, "L%d:\n", l2 );
 
@@ -231,14 +231,14 @@ int codeGen( struct tnode *t , int* jmpLabels, int main) {
                     // Label to restart loop
                     fprintf(fp, "L%d:\n", l1 );
                     // Check condition
-                    i = codeGen(t->children[0], jmpLabels, main);
+                    i = codeGen(t->children[0], c);
                     // If condition fails jump to end
                     fprintf(fp, "JZ  R%d, L%d\n", i, l2);
                     // If condiiton suceeds execute code and pass labels
-                    int * temp = (int *)malloc(2*sizeof(int));
-                    temp[0] = l1;
-                    temp[1] = l2;
-                    codeGen(t->children[1], temp, main);
+                    c->jumpLabels = (int *)malloc(2*sizeof(int));
+                    c->jumpLabels[0] = l1;
+                    c->jumpLabels[1] = l2;
+                    codeGen(t->children[1], c);
                     // Jump to start
                     fprintf(fp, "JMP L%d\n", l1);
                     // Exit label
@@ -248,12 +248,12 @@ int codeGen( struct tnode *t , int* jmpLabels, int main) {
                 }
 
                 case breakNode:{     
-                    fprintf(fp, "JMP L%d\n", jmpLabels[1]);
+                    fprintf(fp, "JMP L%d\n", c->jumpLabels[1]);
                     break;
                 }
 
                 case contNode:{     
-                    fprintf(fp, "JMP L%d\n", jmpLabels[0]);
+                    fprintf(fp, "JMP L%d\n", c->jumpLabels[0]);
                     break;
                 }      
                             
@@ -265,12 +265,12 @@ int codeGen( struct tnode *t , int* jmpLabels, int main) {
                     // Label to restart loop
                     fprintf(fp, "L%d:\n", l1 );
                     // Execute code and pass labels
-                    int * temp = (int *)malloc(2*sizeof(int));
-                    temp[0] = l1;
-                    temp[1] = l2;
-                    codeGen(t->children[0], temp, main);
+                    c->jumpLabels = (int *)malloc(2*sizeof(int));
+                    c->jumpLabels[0] = l1;
+                    c->jumpLabels[1] = l2;
+                    codeGen(t->children[0], c);
                     // Check condition
-                    i = codeGen(t->children[1], jmpLabels, main);
+                    i = codeGen(t->children[1], c);
                     // If condition succeeds jump to end
                     fprintf(fp, "JNZ  R%d, L%d\n", i, l1);
                     // Exit label
@@ -286,12 +286,12 @@ int codeGen( struct tnode *t , int* jmpLabels, int main) {
                     // Label to restart loop
                     fprintf(fp, "L%d:\n", l1 );
                     // Execute code and pass labels
-                    int * temp = (int *)malloc(2*sizeof(int));
-                    temp[0] = l1;
-                    temp[1] = l2;
-                    codeGen(t->children[0], temp, main);
+                    c->jumpLabels = (int *)malloc(2*sizeof(int));
+                    c->jumpLabels[0] = l1;
+                    c->jumpLabels[1] = l2;
+                    codeGen(t->children[0], c);
                     // Check condition
-                    i = codeGen(t->children[1], jmpLabels, main);
+                    i = codeGen(t->children[1], c);
                     // If condition succeeds jump to end
                     fprintf(fp, "JZ  R%d, L%d\n", i, l1);
                     // Exit label
@@ -313,7 +313,7 @@ int codeGen( struct tnode *t , int* jmpLabels, int main) {
                 }
                 
                 case derefNode :{       
-                    i = codeGen(t->children[0], jmpLabels, main);   
+                    i = codeGen(t->children[0], c);   
                     fprintf(fp, "MOV R%d, [R%d]\n", i, i );
                     break;
                 }
@@ -342,7 +342,7 @@ int codeGen( struct tnode *t , int* jmpLabels, int main) {
                         exit(1);
                     }
                     i = getReg();
-                    j = codeGen(t->children[1], jmpLabels, main);
+                    j = codeGen(t->children[1], c);
                     fprintf(fp, "MOV R%d, %d\n", i, t->Gentry->binding );
                     fprintf(fp, "ADD R%d, R%d\n", i, j );
                     freeReg();
@@ -351,7 +351,7 @@ int codeGen( struct tnode *t , int* jmpLabels, int main) {
 
                 // Checked - Read() from console to memory location (pointed by children[0] and only child)
                 case readNode:{      
-                    i = codeGen(t->children[0], jmpLabels, main);
+                    i = codeGen(t->children[0], c);
                     fprintf(fp, "MOV R19, R%d\n", i );
                     fprintf(fp, "CALL READ\n");
                     freeReg();
@@ -360,7 +360,7 @@ int codeGen( struct tnode *t , int* jmpLabels, int main) {
                                     
                 // Checked - Write() to console from RHS expression (pointed by children[0] and only child)
                 case writeNode:{     
-                    i = codeGen(t->children[0], jmpLabels, main);
+                    i = codeGen(t->children[0], c);
                     fprintf(fp, "MOV R19, R%d\n", i);
                     fprintf(fp, "CALL WRITE\n");
                     freeReg();
@@ -374,7 +374,7 @@ int codeGen( struct tnode *t , int* jmpLabels, int main) {
                         fprintf(fp, "PUSH R%d\n", reg);
                     }
                     // If arglist is present Call CodeGen again to push Args
-                    if ( t->children[1] ) codeGen(t->children[1], jmpLabels, main);
+                    if ( t->children[1] ) codeGen(t->children[1], c);
                     
                     // Empty space for Ret Val
                     fprintf(fp, "PUSH R0\n");
@@ -389,36 +389,32 @@ int codeGen( struct tnode *t , int* jmpLabels, int main) {
                     fprintf(fp, "POP R%d\n", i);
                     
                     // Calculate number of args to pop
-                    int size = 0;
                     struct Paramstruct * g = t->children[0]->Gentry->paramlist;
                     while (g){
-                        size++;
+                        fprintf(fp, "POP R19\n");
                         g = g->next;
                     }
-                    for (int x=0;x<size;x++)
-                        fprintf(fp, "POP R19\n");
 
                     // Restore Register Context
-                    for (int x=t->val-1; x >=0 ; x -- ){
-                        fprintf(fp, "POP R%d\n", x);
-                    }
+                    for (int x=t->val-1; x >=0 ; x -- ) fprintf(fp, "POP R%d\n", x);
 
                     break;
                 }
+                
                 case argNode:{
-                    i = codeGen(t->children[t->childcount-1], jmpLabels, main);
+                    i = codeGen(t->children[t->childcount-1], c);
                     fprintf(fp, "PUSH R%d\n", i);
                     freeReg();
                     if ( t->childcount == 2 ){
-                        codeGen(t->children[0], jmpLabels, main);
+                        codeGen(t->children[0], c);
                     }
                     break;
                 }
                 
                 case returnNode:{
-                    i =  codeGen(t->children[0], jmpLabels, main);
+                    i =  codeGen(t->children[0], c);
                     j = getReg();
-                    if ( main == 0 ){
+                    if ( c->mainFunc == 0 ){
                         fprintf(fp, "MOV R%d, BP\n", j);
                         fprintf(fp, "SUB R%d, 2\n", j);
                         fprintf(fp, "MOV [R%d], R%d\n", j, i);
@@ -430,8 +426,8 @@ int codeGen( struct tnode *t , int* jmpLabels, int main) {
         }
         // Instructions requiring 2 registers
         else if ( (t->nodetype & 1) == 1){
-            i = codeGen(t->children[0], jmpLabels, main);
-            j = codeGen(t->children[1], jmpLabels, main);
+            i = codeGen(t->children[0], c);
+            j = codeGen(t->children[1], c);
             switch( t->nodetype ){
                 case addNode:   fprintf(fp, "ADD R%d, R%d\n", i, j);
                                 break;
@@ -454,6 +450,10 @@ int codeGen( struct tnode *t , int* jmpLabels, int main) {
                 case eqNode:    fprintf(fp, "EQ  R%d, R%d\n", i, j);
                                 break;
                 case neNode:    fprintf(fp, "NE  R%d, R%d\n", i, j);
+                                break;
+                case andNode:   fprintf(fp, "MUL  R%d, R%d\n", i, j);
+                                break;
+                case orNode:    fprintf(fp, "ADD  R%d, R%d\n", i, j);
                                 break;
             }
             freeReg();

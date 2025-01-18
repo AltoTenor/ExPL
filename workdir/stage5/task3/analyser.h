@@ -106,6 +106,8 @@ typedef enum {
     ltNode = 17,
     eqNode = 19, 
     neNode = 21,
+    andNode = 25,
+    orNode = 27,
 
     connectorNode = 0,
     readNode = 2,
