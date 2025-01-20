@@ -26,8 +26,10 @@ int main()
   enddecl
 
   begin
+    write("Input N:");
     read(a);
     res = fact(a);
+    write("N Factorial:");
     write(res);
 
     return 0;

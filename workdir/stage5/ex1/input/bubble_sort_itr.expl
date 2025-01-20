@@ -29,7 +29,7 @@ int main()
     endwhile;
     i = i+1;
   endwhile;
-  write("Sorted Arr:\n");
+  write("Sorted Arr:");
   i=0;
   while(i<n) do
     write(arr[i]);

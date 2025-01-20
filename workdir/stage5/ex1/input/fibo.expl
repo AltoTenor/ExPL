@@ -24,7 +24,9 @@ int main(){
         int result;
     enddecl
     begin
+        write("Input N:");
         read(n);
+        write("Nth Fibonacci:");
         result = fibo(n);
         write(result);
         return 0;

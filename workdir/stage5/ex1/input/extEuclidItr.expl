@@ -26,7 +26,7 @@ int main() {
             t0 = t1;
             t1 = ti;
         endwhile;
-
+        write("GCD is:");
         write(r0);
         write(s0);
         write(t0);

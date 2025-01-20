@@ -6,8 +6,9 @@ int main()
   begin
     read(a);
     read(b);
-    write((&a+1));
     *(&a+1) = 12;
+    write(b);
+    b = 15;
     write(b);
     return 0;
   end

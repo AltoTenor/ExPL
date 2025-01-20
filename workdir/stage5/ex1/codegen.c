@@ -197,15 +197,6 @@ int codeGen( struct tnode *t , struct Context * c) {
                     break;
                 }
 
-                // case ptrAssignNode:{
-                //     i = codeGen(t->children[0], c);
-                //     j = codeGen(t->children[1], c);
-                //     fprintf(fp, "MOV [R%d], R%d\n", i, j );
-                //     freeReg();
-                //     freeReg();
-                //     break;
-                // }
-
                 // If then else construct
                 case ifNode:{
                     int l1 = getLabel();
@@ -287,6 +278,7 @@ int codeGen( struct tnode *t , struct Context * c) {
                     freeReg();
                     break;
                 }
+                
                 // Repeat-Until construct
                 case repeatNode:{    
                     int l1 = getLabel();
@@ -332,7 +324,6 @@ int codeGen( struct tnode *t , struct Context * c) {
                     i = getReg();
                     if ( t->Lentry != NULL ){
                         fprintf(fp, "MOV R%d, BP\n", i);
-                        // Recheck
                         fprintf(fp, "ADD R%d, %d\n", i, t->Lentry->binding );
                     }
                     else if( t->Gentry != NULL )
