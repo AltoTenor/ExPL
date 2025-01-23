@@ -1,0 +1,22 @@
+decl
+	tuple faculty (int a, int b, int c) y;
+	int f();
+enddecl
+int f()
+{
+	decl
+		tuple faculty (int a, int b, int c) *x;
+	enddecl
+	begin
+		x = &y;
+		return 0;
+	end
+}
+int main(){
+	decl
+		int a;
+	enddecl
+	begin
+		a = f();
+	end
+}
