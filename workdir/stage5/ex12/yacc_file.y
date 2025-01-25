@@ -267,7 +267,7 @@ identifier : ID  { $$ = $1; }
     | ID '[' expr ']' {
         $$ = createTree(NULL, NULL, "int", arrTypeNode,  alloc_2($1, $3), 2 , NULL, NULL);
     }
-    | ID '.' ID {
+    | identifier '.' ID {
         $$ = createTree(NULL, NULL, "void", tupleMemberNode,  alloc_2($1, $3), 2 , NULL, NULL);
     }
 ;

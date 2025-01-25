@@ -175,7 +175,6 @@ void printGSymbolTable(){
 }
 
 
-
 // ------------------------LOCAL SYMBOL TABLE-------------------------------------------------------
 
 struct Lsymbol * LInstall(char *name, struct Typetable* type, struct tnode* head){
@@ -323,8 +322,8 @@ void initTuple(struct tnode **children, struct tnode * LSThead){
     t = f;
     int size = 0;
     while(t){
-        printf("%s ", t->name);
-        printf("%d ", t->fieldIndex);
+        // printf("%s ", t->name);
+        // printf("%d ", t->fieldIndex);
         size++; 
         t = t->next; 
     }
@@ -341,7 +340,7 @@ void setTupleIDinGST(struct tnode * t, struct Typetable* type){
         GInstall(t->name, type, type->size, -1);
     }
     else if ( t->nodetype == ptrNode ){
-        GInstall(t->children[0]->name, make_pointer(type), type->size, -1);
+        GInstall(t->children[0]->name, make_pointer(type), 1, -1);
     }
     else if ( t->nodetype == connectorNode ){
         setTupleIDinGST(t->children[0], type);
@@ -393,6 +392,11 @@ struct Fieldlist * fetchFieldList(struct tnode * t){
 }
 
 struct Fieldlist * FLookup(struct Typetable* type, char * name){
+    if (   name == NULL 
+        || type == NULL 
+        || type->fields == NULL 
+        || type->fields->name == NULL ) return NULL;
+
     struct Fieldlist * f = type->fields;
     while( f ){
         if ( strcmp(f->name, name) == 0 ) return f;
@@ -528,34 +532,26 @@ void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, struct Typetable* 
                             break;
         case returnNode:    if (t->children[0]->type != retType){
                                 printf("Return Type Does not match\n");
-                                printf("Expected %s, returned %s\n", retType->name, t->children[0]->type->name);
+                                printf("Expected %s, returned %s\n", 
+                                        retType->name, 
+                                        t->children[0]->type->name);
                                 exit(1);
                             }
                             break;
         case funcCallNode:{ t->type = findType(t->children[0]);
                             if (t->children[1]){
                                 struct Paramstruct* argList = fetchArgList(t->children[1]); 
-                                if ( verifyArgTypes(argList, t->children[0]->Gentry->paramlist)  == 0 ){
-                                    printf("Wrong Args passed to %s\n", t->children[0]->Gentry->name);
+                                if ( verifyArgTypes(argList, t->children[0]->Gentry->paramlist)==0){
+                                    printf("Wrong Args passed to %s\n", 
+                                            t->children[0]->Gentry->name);
                                     exit(1);
                                 } 
                             }
                             break;
                             }
         case tupleMemberNode:{
-                            struct Lsymbol* l = LLookup(t->children[0]->name, Lentry);
-                            struct Gsymbol* g = GLookup(t->children[0]->name);
-                            struct Fieldlist * f;
-                            if ( l != NULL ){
-                                f = FLookup(t->children[0]->type, t->children[1]->name);
-                            }
-                            else if ( g != NULL ){
-                                f = FLookup(t->children[0]->type, t->children[1]->name);
-                            }
-                            else{
-                                printf("Trying to access undefined tuple\n");
-                                exit(1);
-                            }
+                            struct Fieldlist * f 
+                                = FLookup(t->children[0]->type, t->children[1]->name);
                             if ( f == NULL ){
                                 printf("Trying to access undefined member of tuple\n");
                                 exit(1);

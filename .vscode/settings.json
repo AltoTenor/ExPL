@@ -3,7 +3,10 @@
         "string.h": "c",
         "typeinfo": "c",
         "analyser.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "type_traits": "c",
+        "stdlib.h": "c",
+        "stddef.h": "c"
     },
     "svg.preview.background": "editor"
 }

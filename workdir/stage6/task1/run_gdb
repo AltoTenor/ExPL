@@ -1,0 +1,9 @@
+#!/bin/bash
+
+yacc -d yacc_file.y
+lex lex_file.l
+gcc -g codegen.c analyser.c y.tab.c lex.yy.c  -o t1
+rm y.tab.c lex.yy.c y.tab.h
+gdb t1
+rm t1
+

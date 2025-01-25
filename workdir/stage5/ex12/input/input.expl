@@ -1,22 +1,9 @@
-decl
-	tuple faculty (int a, int b, int c) y;
-	int f();
-enddecl
-int f()
-{
-	decl
-		tuple faculty (int a, int b, int c) *x;
-	enddecl
-	begin
-		x = &y;
-		return 0;
-	end
-}
 int main(){
 	decl
-		int a;
+		tuple faculty (int a, int b, int c) x;
 	enddecl
 	begin
-		a = f();
+		read(x.c);
+		return 0;
 	end
 }
