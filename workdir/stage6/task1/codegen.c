@@ -125,7 +125,8 @@ int codeGen( struct tnode *t , struct Context * c) {
                         struct Lsymbol * l = t->Lentry;
                         int inc = 0;
                         while ( l ){ 
-                            for (int x=0;x<l->type->size;x++) inc++; 
+                            if (t->type->generalType == TYPE_TUPLE) inc += l->type->size; 
+                            else inc++;
                             l = l->next; 
                         }
                         fprintf(fp, "ADD SP, %d\n", inc); 
@@ -194,9 +195,9 @@ int codeGen( struct tnode *t , struct Context * c) {
                 case assignNode:{
                     struct Fieldlist * f = t->children[0]->type->fields;
                     i = codeGen(t->children[0], c);
-                    if ( f ){
-                        k = getReg();
+                    if ( t->children[0]->type->generalType == TYPE_TUPLE ){
                         j = codeGen(t->children[1]->children[0], c);
+                        k = getReg();
                         while (f){
                             fprintf(fp, "MOV R%d, [R%d]\n", k, j );
                             fprintf(fp, "MOV [R%d], R%d\n", i, k );
@@ -444,7 +445,7 @@ int codeGen( struct tnode *t , struct Context * c) {
                 }
                 
                 // Cant do multiple member access yet
-                // case tupleMemberNode:{
+                // case memberNode:{
                 //     i = getReg();
                 //     if ( t->children[0]->Lentry != NULL ){
                 //         fprintf(fp, "MOV R%d, BP\n", i);
@@ -462,32 +463,63 @@ int codeGen( struct tnode *t , struct Context * c) {
                 //         exit(1);
                 //     }
                 // }
-                case tupleMemberNode:{
-                    if ( t->children[0]->nodetype == idNode ){
-                        // If it is the first variable then access the GST or LST to get address
-                        // Store in the register "i" and pass it up
-                        i = getReg();
-                        if ( t->children[0]->Lentry != NULL ){
-                            fprintf(fp, "MOV R%d, BP\n", i);
-                            fprintf(fp, "ADD R%d, %d\n", i, t->children[0]->Lentry->binding );
+                case memberNode:{
+                    // Handling Member access for Tuples
+                    if ( t->children[0]->type->generalType == TYPE_TUPLE ){
+                        if ( t->children[0]->nodetype == idNode ){
+                            // If it is the first variable then access the GST or LST to get address
+                            // Store in the register "i" and pass it up
+                            i = getReg();
+                            if ( t->children[0]->Lentry != NULL ){
+                                fprintf(fp, "MOV R%d, BP\n", i);
+                                fprintf(fp, "ADD R%d, %d\n", i, t->children[0]->Lentry->binding );
+                            }
+                            else if( t->children[0]->Gentry != NULL ){
+                                fprintf(fp, "MOV R%d, %d\n", i, t->children[0]->Gentry->binding  );
+                            }
+                            else{
+                                printf("Error: No symbol entry\n");
+                                exit(1);
+                            }
                         }
-                        else if( t->children[0]->Gentry != NULL ){
-                            fprintf(fp, "MOV R%d, %d\n", i, t->children[0]->Gentry->binding  );
+                        else if ( t->children[0]->nodetype == memberNode ){
+                            // If it is a member then i has the address just need to access it
+                            i = codeGen(t->children[0], c);
+                            fprintf(fp, "MOV R%d, [R%d]\n", i, i);
                         }
-                        else{
-                            printf("Error: No symbol entry\n");
-                            exit(1);
-                        }
+                        else { printf("Error in member access subtree\n"); exit(1);}
+                        // Add the fieldindex value to the address 
+                        struct Fieldlist * f = FLookup(t->children[0]->type, t->children[1]->name);
+                        fprintf(fp, "ADD R%d, %d\n", i, f->fieldIndex );
+                        break;
                     }
-                    else if ( t->children[0]->nodetype == tupleMemberNode ){
+                    // Handling member access for User Defined Types
+                    else{
                         // If it is a member then i has the address just need to access it
                         i = codeGen(t->children[0], c);
                         fprintf(fp, "MOV R%d, [R%d]\n", i, i);
+                        // Add the fieldindex value to the address 
+                        struct Fieldlist * f = FLookup(t->children[0]->type, t->children[1]->name);
+                        fprintf(fp, "ADD R%d, %d\n", i, f->fieldIndex );
+                        break;
                     }
-                    else { printf("Error in member access subtree\n"); exit(1);}
-                    // Add the fieldindex value to the address 
-                    struct Fieldlist * f = FLookup(t->children[0]->type, t->children[1]->name);
-                    fprintf(fp, "ADD R%d, %d\n", i, f->fieldIndex );
+                }
+
+                case nullNode: {
+                    i = getReg();
+                    fprintf(fp, "MOV R%d, -1\n", i);
+                    break;
+                }
+
+                case allocNode: {
+                    i = getReg();
+                    fprintf(fp, "MOV R%d, -1\n", i);
+                    break;
+                }
+
+                case initNode: {
+                    i = getReg();
+                    fprintf(fp, "MOV R%d, -1\n", i);
                     break;
                 }
             }

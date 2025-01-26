@@ -174,7 +174,6 @@ void printGSymbolTable(){
     }
 }
 
-
 // ------------------------LOCAL SYMBOL TABLE-------------------------------------------------------
 
 struct Lsymbol * LInstall(char *name, struct Typetable* type, struct tnode* head){
@@ -250,12 +249,11 @@ void addBindingAddr(struct Lsymbol* Lentry){
     int addr = 1;
     struct Lsymbol* t = Lentry;
     while (t){
-        t->binding = addr++;
+        t->binding = addr;
+        addr += t->type->size;
         t = t->next;
     }
 }
-
-
 // ---------------------------TYPE TABLE------------------------------------------------------------
 
 struct Typetable* TInstall(char *name,int size, struct Fieldlist *fields){

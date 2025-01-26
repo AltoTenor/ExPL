@@ -47,41 +47,23 @@
 /* Program Root section */
 Program : GDeclBlock FDefBlock MainBlock {          
         $$ = createTree(NULL, NULL, "void", rootNode,  alloc_3($1, $2, $3) , 3 , NULL, NULL); 
-        printTree($$, NULL, 0);
-
-        initialize();
-        struct Context * c = (struct Context *)malloc(sizeof(struct Context));
-        c->jumpLabels = (int *)malloc(sizeof(int)*2);
-        c->mainFunc = 0;
-        codeGen($2, c);
-        c->mainFunc = 1;
-        codeGen($3, c);
+        // printTree($$, NULL, 0);
     }
     | GDeclBlock MainBlock {
         $$ = createTree(NULL, NULL, "void", rootNode,  alloc_2($1, $2) , 2 , NULL, NULL); 
-        printTree($$, NULL, 0);
-        
-        initialize();
-        struct Context * c = (struct Context *)malloc(sizeof(struct Context));
-        c->jumpLabels = (int *)malloc(sizeof(int)*2);
-        c->mainFunc = 1;
-        codeGen($2, c);
+        // printTree($$, NULL, 0);
+
     }
     | MainBlock {
         $$ = $1;
-        printTree($$, NULL, 0);
+        // printTree($$, NULL, 0);
 
-        initialize();
-        struct Context * c = (struct Context *)malloc(sizeof(struct Context));
-        c->jumpLabels = (int *)malloc(sizeof(int)*2);
-        c->mainFunc = 1;
-        codeGen($1, c);
     }
 ;
 
 /* Global Declarations */
-GDeclBlock : DECL GDeclList ENDDECL { $$ = $2; }
-    | DECL ENDDECL { $$ = NULL; }
+GDeclBlock : DECL GDeclList ENDDECL { $$ = $2; initialize(); }
+    | DECL ENDDECL { $$ = NULL; initialize(); }
 ;
 GDeclList : GDeclList GDecl {
         $$ = createTree(NULL, NULL, "void", connectorNode,  alloc_2($1, $2) , 2 , NULL, NULL); 
@@ -130,26 +112,48 @@ FDefBlock : FDefBlock Fdef {
     | Fdef { $$ = $1; }
 ;
 Fdef : Type ID '(' ParamList ')' '{' FuncBody '}' {
+        printf("here\n");
+        
         $$ = createTree(NULL, NULL, "void", FDefNode, alloc_4($1, $2, $4, $7), 4, NULL, $7-> Lentry );
         printf("LST %s function\n", $2->name);
         printLSymbolTable($$->Lentry);
+
+        struct Context * c = (struct Context *)malloc(sizeof(struct Context));
+        c->jumpLabels = (int *)malloc(sizeof(int)*2);
+        c->mainFunc = 0;
+        codeGen($$, c);
     }
     | Type ID '(' ')' '{' FuncBody '}' {
         $$ = createTree(NULL, NULL, "void", FDefNode, alloc_4($1, $2, NULL, $6), 4, NULL, $6 -> Lentry);
         printf("LST %s function\n", $2->name);
         printLSymbolTable($$->Lentry);
+
+        struct Context * c = (struct Context *)malloc(sizeof(struct Context));
+        c->jumpLabels = (int *)malloc(sizeof(int)*2);
+        c->mainFunc = 0;
+        codeGen($$, c);
     }
     | Type '*' ID '(' ParamList ')' '{' FuncBody '}' {
         $1->type = make_pointer($1->type);
         $$ = createTree(NULL, NULL, "void", FDefNode, alloc_4($1, $3, $5, $8), 4, NULL, $8-> Lentry );
         printf("LST %s function\n", $3->name);
         printLSymbolTable($$->Lentry);
+
+        struct Context * c = (struct Context *)malloc(sizeof(struct Context));
+        c->jumpLabels = (int *)malloc(sizeof(int)*2);
+        c->mainFunc = 0;
+        codeGen($$, c);
     }
     | Type '*' ID '(' ')' '{' FuncBody '}' {
         $1->type = make_pointer($1->type);
         $$ = createTree(NULL, NULL, "void", FDefNode, alloc_4($1, $3, NULL, $7), 4, NULL, $7 -> Lentry);
         printf("LST %s function\n", $3->name);
         printLSymbolTable($$->Lentry);
+
+        struct Context * c = (struct Context *)malloc(sizeof(struct Context));
+        c->jumpLabels = (int *)malloc(sizeof(int)*2);
+        c->mainFunc = 0;
+        codeGen($$, c);
     }
 ;
 /* Main Function */
@@ -158,6 +162,10 @@ MainBlock: Type MAIN '(' ')' '{' FuncBody '}' {
         $$ = createTree(NULL, NULL, "void", FDefNode, alloc_4($1, $2, NULL, $6), 4, NULL, $6 -> Lentry);
         printf("LST %s function\n", $2->name);
         printLSymbolTable($$->Lentry);
+        struct Context * c = (struct Context *)malloc(sizeof(struct Context));
+        c->jumpLabels = (int *)malloc(sizeof(int)*2);
+        c->mainFunc = 1;
+        codeGen($$, c);
     }
 ;
 FuncBody : LdeclBlock Body {

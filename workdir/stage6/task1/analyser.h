@@ -3,6 +3,82 @@ union Constant{
     char* strval;
 };
 
+// ENUMS
+typedef enum {
+    addNode = 1,
+    mulNode = 3,
+    subNode = 7,
+    divNode = 9,
+    modNode = 23,
+
+    geNode = 11, 
+    leNode = 13,
+    gtNode = 15,
+    ltNode = 17,
+    eqNode = 19, 
+    neNode = 21,
+    andNode = 25,
+    orNode = 27,
+
+    connectorNode = 0,
+    readNode = 2,
+    writeNode = 4,
+    assignNode = 6,
+
+    exprNode = 16,
+    derefOpNode = 58,
+    idNode = 8,
+    numNode = 10,
+    strConstNode = 12,
+
+    ifNode = 14,
+    whileNode = 18,
+    dowhileNode = 20,
+    repeatNode = 22,
+    breakNode = 24,
+    contNode = 26,
+
+    typeNode = 28,
+
+    brkpNode = 30,
+    arrTypeNode = 32,
+    ptrNode = 34,
+    addrNode = 56,
+
+
+    LDeclNode = 36,
+    funcTypeGDeclNode = 38,
+    funcPtrTypeGDeclNode = 58,
+    paramNode = 40,
+    GDeclNode = 42,
+
+    argNode = 44,
+    FDefNode = 46,
+    FBodyNode = 48,
+    returnNode = 52,
+    funcCallNode = 54,
+    tupleNode = 60,
+    memberNode = 62,
+
+    typeDefNode = 64,
+    fieldDeclNode = 66,
+
+    initNode = 68,
+    allocNode = 70,
+    nullNode = 72,
+
+    rootNode = 50,
+
+} NodeType;
+
+typedef enum {
+    PRIMITIVE = 0,
+    TYPE_TUPLE = 1, 
+    POINTER = 2,
+    USER_DEF = 3,
+} GeneralType;
+
+
 typedef struct tnode {
     char* name;
     union Constant value;
@@ -73,7 +149,7 @@ void addBindingAddr(struct Lsymbol* Lentry);
 struct Typetable{
     char *name;                 //type name
     int size;                   //size of the type
-    int isPointer;              //
+    int generalType;              //
     struct Fieldlist *fields;   //pointer to the head of fields list
     struct Typetable *next;     // pointer to the next type table entry
 };
@@ -86,25 +162,29 @@ struct Fieldlist{
 };
 
 // Insert a new type record
-struct Typetable* TInstall(char *name,int size, struct Fieldlist *fields);
+struct Typetable* TInstall(char *name,int size, struct Fieldlist *fields, GeneralType gt);
 // Search for a type record
 struct Typetable* TLookup(char *name);
 // Initialize INT / STR / BOOLEAN / NULL / VOID 
 void TypeTableCreate();
 // Making a pointer of a type
 struct Typetable* make_pointer(struct Typetable* type);
+// setting up a new user defined type
+struct Typetable* setUserDefType(struct tnode* t);
+// Printing the entire type table
+void printTypeTable();
+
+// Making a field list from the parameters
+struct Fieldlist* fetchFieldList(struct tnode * t);
+struct Fieldlist * FLookup(struct Typetable* type, char * name);
 
 /* ---------------------------------------------------------------------------------------------- */
 /* TUPLES */
 // Set up a tuple in the GST
 void initTuple(struct tnode **children, struct tnode * LSThead);
-// Making a field list from the parameters
-struct Fieldlist* fetchFieldList(struct tnode * t);
 // Setting up IDs
 void setTupleIDinGST(struct tnode * t, struct Typetable* type);
 void setTupleIDinLST(struct tnode * t, struct Typetable* type, struct tnode * LSThead);
-
-struct Fieldlist * FLookup(struct Typetable* type, char * name);
 
 /* ---------------------------------------------------------------------------------------------- */
 /* FUNCTION VERIFICATION */
@@ -141,63 +221,3 @@ char * printNode( struct tnode* t );
 void printX(char * s, int X, int val, int type);
 char * printType( struct Typetable* t );
 
-// ENUMS
-typedef enum {
-    addNode = 1,
-    mulNode = 3,
-    subNode = 7,
-    divNode = 9,
-    modNode = 23,
-
-    geNode = 11, 
-    leNode = 13,
-    gtNode = 15,
-    ltNode = 17,
-    eqNode = 19, 
-    neNode = 21,
-    andNode = 25,
-    orNode = 27,
-
-    connectorNode = 0,
-    readNode = 2,
-    writeNode = 4,
-    assignNode = 6,
-
-    exprNode = 16,
-    derefOpNode = 58,
-    idNode = 8,
-    numNode = 10,
-    strConstNode = 12,
-
-    ifNode = 14,
-    whileNode = 18,
-    dowhileNode = 20,
-    repeatNode = 22,
-    breakNode = 24,
-    contNode = 26,
-
-    typeNode = 28,
-
-    brkpNode = 30,
-    arrTypeNode = 32,
-    ptrNode = 34,
-    addrNode = 56,
-
-
-    LDeclNode = 36,
-    funcTypeGDeclNode = 38,
-    funcPtrTypeGDeclNode = 58,
-    paramNode = 40,
-    GDeclNode = 42,
-
-    argNode = 44,
-    FDefNode = 46,
-    FBodyNode = 48,
-    returnNode = 52,
-    funcCallNode = 54,
-    tupleNode = 60,
-    tupleMemberNode = 62,
-
-    rootNode = 50,
-
-} NodeType;

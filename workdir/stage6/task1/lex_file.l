@@ -21,15 +21,22 @@ digit [0-9]
 
 (decl)              {   return DECL; }
 (enddecl)           {   return ENDDECL; }
+
+(type)              {   return TYPE; }
+(endtype)           {   return ENDTYPE; }
+
 (int)               {   return INT; }
 (str)               {   return STR; }
 (tuple)             {   return TUPLE; }
+(null)              {   return NULL_KEYWORD; }
 
 (main)              {   yylval.no = createTree("main", NULL, NULL, idNode,  NULL , 0 , NULL, NULL); return MAIN; }
 (return)            {   return RETURN; }
 
 (read)              {   return READ; }
 (write)             {   return WRITE; }
+(initialize)        {   return INITIALIZE; }
+(alloc)             {   return ALLOC; }
 
 (if)                {   return IF; }
 (endif)             {   return ENDIF; }

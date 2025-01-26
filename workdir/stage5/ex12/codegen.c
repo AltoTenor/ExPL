@@ -125,7 +125,8 @@ int codeGen( struct tnode *t , struct Context * c) {
                         struct Lsymbol * l = t->Lentry;
                         int inc = 0;
                         while ( l ){ 
-                            for (int x=0;x<l->type->size;x++) inc++; 
+                            printf("%s ", l->type->name);
+                            inc += l->type->size; 
                             l = l->next; 
                         }
                         fprintf(fp, "ADD SP, %d\n", inc); 

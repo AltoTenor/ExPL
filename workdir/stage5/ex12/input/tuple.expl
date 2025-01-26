@@ -1,11 +1,11 @@
 decl
-	tuple faculty (int a, int b, int c) y;
 	int f();
+		tuple faculty (int a, int b, int c) x;
 enddecl
 int f()
 {
 	decl
-		tuple faculty (int a, int b, int c) x;
+		tuple faculty (int a, int b, int c) y;
 	enddecl
 	begin
 		y.a = 7;

@@ -26,6 +26,10 @@ struct tnode* createTree(   char* name,
     temp->Gentry = Gentry;
 
     temp->type = TLookup(type);
+    if ( nodetype==typeNode && temp->type == NULL ){
+        printf("Invalid Type Used: %s\n", type);
+        exit(1);
+    }
     temp->childcount = childcount;
     temp->nodetype = nodetype;
     switch (nodetype){
@@ -88,11 +92,14 @@ void GInstall(char *name, struct Typetable * type, int size, int fl){
     strcpy(temp->name, name);
     temp->size = size;
     temp->type = type;
-    temp->binding = SP;
     temp->flabel = fl;
     temp->next = NULL;
     temp->paramlist = NULL;
-    SP += size;
+    temp->binding = SP;
+    // For Dynamic Allocation we only storing the pointer
+    if ( type->generalType == USER_DEF ) SP += 1;
+    // For Static ALlocation we need space = size
+    else SP += size;
 
     // Inserting in a linked list
     if ( symbolTable == NULL ){
@@ -122,13 +129,13 @@ void setGTypes(struct tnode* t, struct Typetable * type, struct Gsymbol* paramHe
         setGTypes( t -> children[1], type, paramHead);
     }
     else if( t->nodetype == idNode ){
-        GInstall( t->name, type, 1, -1);
+        GInstall( t->name, type, type->size, -1);
     }
     else if( t->nodetype == ptrNode ){
         GInstall( t->children[0]->name, make_pointer(type), 1, -1);
     }
     else if( t->nodetype == arrTypeNode ){
-        GInstall( t->children[0]->name, make_pointer(type), t->children[1]->value.intval, -1);
+        GInstall( t->children[0]->name, type, t->children[1]->value.intval, -1);
     }
     else if( t->nodetype == funcTypeGDeclNode ){
         GInstall( t->children[0]->name, type, 0, globalFlabel++);
@@ -216,8 +223,6 @@ void setLTypes(struct Typetable* type, struct tnode * t, struct tnode* head){
     }
     else if ( t->nodetype == idNode ){
         struct Lsymbol * l = LInstall( t->name, type, head );
-        // t->Lentry = l;
-        // t->type = type;
     }
     else if ( t->nodetype == ptrNode ){
         LInstall( t->children[0]->name, make_pointer(type), head);
@@ -250,22 +255,25 @@ void addBindingAddr(struct Lsymbol* Lentry){
     int addr = 1;
     struct Lsymbol* t = Lentry;
     while (t){
-        t->binding = addr++;
+        t->binding = addr;
+        // For Dynamic Types we only need 1 word to store a pointer
+        if ( t->type->generalType == USER_DEF ) addr++;
+        // For Static Types we need space to store the entire thing
+        else addr += t->type->size;
         t = t->next;
     }
 }
 
-
 // ---------------------------TYPE TABLE------------------------------------------------------------
 
-struct Typetable* TInstall(char *name,int size, struct Fieldlist *fields){
+struct Typetable* TInstall(char *name, int size, struct Fieldlist *fields, GeneralType gt){
     struct Typetable* temp = (struct Typetable*)malloc(sizeof(struct Typetable));
     
     temp->name = (char *)malloc(sizeof(char)*20);
     strcpy( temp->name, name );
     temp->size = size;
     temp->fields = fields;
-    temp->isPointer = 0;
+    temp->generalType = gt;
     temp->next = NULL;
 
 
@@ -293,11 +301,11 @@ struct Typetable* TLookup(char *name){
 
 void TypeTableCreate(){
     typeTable = NULL;
-    TInstall("int",1 , NULL);
-    TInstall("str",1 , NULL);
-    TInstall("boolean",1 , NULL);
-    TInstall("null",0 , NULL);
-    TInstall("void",0 , NULL);
+    TInstall("int",1 , NULL, PRIMITIVE);
+    TInstall("str",1 , NULL, PRIMITIVE);
+    TInstall("boolean",1 , NULL, PRIMITIVE);
+    TInstall("null",0 , NULL, PRIMITIVE);
+    TInstall("void",0 , NULL, PRIMITIVE);
 }
 
 struct Typetable* make_pointer(struct Typetable* type){
@@ -308,11 +316,83 @@ struct Typetable* make_pointer(struct Typetable* type){
         struct Fieldlist * f = (struct Fieldlist*)malloc(sizeof(struct Fieldlist));
         f->type = type;
         f->fieldIndex = 0;
-        TInstall(newPtrType, 1, f);
+        TInstall(newPtrType, 1, f, POINTER);
         tt = TLookup(newPtrType);
-        tt->isPointer = 1;
     }
     return tt;
+}
+
+struct Typetable* setUserDefType(struct tnode* t){
+    struct Typetable* newType = TLookup(t->children[0]->name);
+    if (newType == NULL ){
+        printf("Improper definition of type\n Please redeclare.\n");
+        exit(1);
+    }
+    struct Fieldlist *temp, * f = fetchFieldList(t->children[1]);
+    temp = f; int size = 0;
+    while(temp){ size++;  temp = temp->next; }
+    newType->fields = f;
+    newType->size = size;
+    return newType;
+}
+
+void printTypeTable(){
+    struct Typetable* temp = typeTable;
+    printf("TypeTable \n");
+    printf("| TypeName | Size | FieldList \n");
+    while (temp){
+        printX(temp->name, 11, -1, 1);
+        printX("", 6, temp->size, 2);
+        printf("|");
+        struct Fieldlist * f = temp->fields;
+        while(f){
+            printX(f->name, 1, -1, 1);
+            printX(f->type->name, 1, -1, 1);
+            printX("", 1, f->fieldIndex, 2);
+            printf(" |");
+            f = f->next; 
+        }
+        printf("\n");
+        temp = temp->next; 
+    }
+    printf("\n");
+    printf("\n");
+}
+
+struct Fieldlist * fetchFieldList(struct tnode * t){
+    if ( t->nodetype == paramNode ){
+        struct Fieldlist * f = (struct Fieldlist * )malloc(sizeof(struct Fieldlist));
+        f->name = (char*)malloc(sizeof(char)*20);
+        strcpy(f->name, t->children[1]->name);
+        f->type = t->children[0]->type;
+        f->fieldIndex = 0;
+        return f;
+    }
+    else {
+        struct Fieldlist * f1 = fetchFieldList(t->children[0]);
+        struct Fieldlist * f2 = fetchFieldList(t->children[1]);
+
+        struct Fieldlist * t = f1;
+        int i = 0;
+        while ( t->next ) {t->fieldIndex = i++; t = t->next; }
+        t->next = f2;
+        while( t ) {t->fieldIndex = i++; t = t->next; }
+        return f1;
+    }
+}
+
+struct Fieldlist * FLookup(struct Typetable* type, char * name){
+    if (   name == NULL 
+        || type == NULL 
+        || type->fields == NULL 
+        || type->fields->name == NULL ) return NULL;
+
+    struct Fieldlist * f = type->fields;
+    while( f ){
+        if ( strcmp(f->name, name) == 0 ) return f;
+        f=f->next;
+    }
+    return NULL;
 }
 
 // ------------------TUPLES-------------------------------------------------------------------------
@@ -329,7 +409,7 @@ void initTuple(struct tnode **children, struct tnode * LSThead){
     }
     // Try to add checks for field list is same or not
     struct Typetable* type = TLookup(children[0]->name);
-    if (type == NULL ) type = TInstall( children[0]->name, size, f );
+    if (type == NULL ) type = TInstall( children[0]->name, size, f, TYPE_TUPLE);
 
     if ( LSThead == NULL ) setTupleIDinGST(children[2], type);
     else setTupleIDinLST(children[2], type, LSThead);
@@ -369,41 +449,6 @@ void setTupleIDinLST(struct tnode * t, struct Typetable* type, struct tnode * LS
     }
 }
 
-struct Fieldlist * fetchFieldList(struct tnode * t){
-    if ( t->nodetype == paramNode ){
-        struct Fieldlist * f = (struct Fieldlist * )malloc(sizeof(struct Fieldlist));
-        f->name = (char*)malloc(sizeof(char)*20);
-        strcpy(f->name, t->children[1]->name);
-        f->type = t->children[0]->type;
-        f->fieldIndex = 0;
-        return f;
-    }
-    else {
-        struct Fieldlist * f1 = fetchFieldList(t->children[0]);
-        struct Fieldlist * f2 = fetchFieldList(t->children[1]);
-
-        struct Fieldlist * t = f1;
-        int i = 0;
-        while ( t->next ) {t->fieldIndex = i++; t = t->next; }
-        t->next = f2;
-        while( t ) {t->fieldIndex = i++; t = t->next; }
-        return f1;
-    }
-}
-
-struct Fieldlist * FLookup(struct Typetable* type, char * name){
-    if (   name == NULL 
-        || type == NULL 
-        || type->fields == NULL 
-        || type->fields->name == NULL ) return NULL;
-
-    struct Fieldlist * f = type->fields;
-    while( f ){
-        if ( strcmp(f->name, name) == 0 ) return f;
-        f=f->next;
-    }
-    return NULL;
-}
 
 // ---------------------------FUNC DECL-------------------------------------------------------------
 
@@ -430,7 +475,7 @@ void checkFDef(struct tnode ** c, struct Gsymbol *  funcEntry){
 void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, struct Typetable* retType){
     // Anything to be done while going down
     // Recursive Calls
-    if ( t->nodetype == tupleMemberNode ){
+    if ( t->nodetype == memberNode ){
         assignVarTypes(t->children[0], Lentry, retType);
     }
     else{
@@ -443,6 +488,7 @@ void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, struct Typetable* 
         case idNode:{       struct Lsymbol * t1 = LLookup( t->name , Lentry );
                             struct Gsymbol * t2 = GLookup( t->name );
                             // printLSymbolTable(Lentry);
+                            printf("%s\n",t->name);
                             if ( t1 != NULL ) {
                                 t->Lentry = t1;
                                 t->type = t1->type;
@@ -462,12 +508,20 @@ void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, struct Typetable* 
                                 printf("Indexing non-int address");
                                 exit(1);
                             }
-                            t->type = t->children[0]->type->fields->type;
+                            t->type = t->children[0]->type;
                             // Assigning Type information
                             // t->Gentry = t->children[0]->Gentry;
                             break;
                             
-        case assignNode:{   if ( t->children[0]->type != t->children[1]->type ){
+        case assignNode:{   int op1 = t->children[0]->type != t->children[1]->type;
+                            printf("%d\n", t->children[1]->type == TLookup("null"));
+                            // Allow User Defined types to store NULL
+                            int op2 = t->children[1]->type == TLookup("null") 
+                                    && t->children[0]->type->generalType == USER_DEF;
+                            // Allow User Defined types to store integer addresses
+                            int op3 = t->children[1]->type == TLookup("int") 
+                                    && t->children[0]->type->generalType == USER_DEF;
+                            if ( op1 == 1 && op2 == 0 && op3 == 0 ){
                                 printf("Assignment Type Wrong\n");
                                 printf("Trying to assign %s to %s\n",
                                         t->children[1]->type->name, 
@@ -476,8 +530,8 @@ void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, struct Typetable* 
                             }
                             break;}
 
-        case derefOpNode:   if ( t->children[0]->type->isPointer == 0 ){
-                                printf("Dereferencing non pointer");
+        case derefOpNode:   if ( t->children[0]->type->generalType != POINTER ){
+                                printf("Dereferencing non pointer: %d\n",t->children[0]->type->generalType);
                                 exit(1);
                             }
                             t->type = t->children[0]->type->fields->type;
@@ -489,12 +543,12 @@ void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, struct Typetable* 
         case addrNode:{     t->type = make_pointer(t->children[0]->type);
                             break;}
         case addNode:   
-        case subNode:{      int op1 = t->children[0]->type->isPointer 
+        case subNode:{      int op1 = t->children[0]->type->generalType == POINTER 
                                 && t->children[1]->type == TLookup("int");
-                            int op2 = t->children[1]->type->isPointer 
+                            int op2 = t->children[1]->type->generalType == POINTER 
                                 && t->children[0]->type == TLookup("int");
-                            int op3 = t->children[0]->type->isPointer 
-                                && t->children[1]->type->isPointer;
+                            int op3 = t->children[0]->type->generalType == POINTER
+                                && t->children[1]->type->generalType == POINTER;
                             int op4 = t->children[0]->type == TLookup("int")
                                 && t->children[1]->type == TLookup("int");
                             if ( op1==0 && op2==0 && op3==0 && op4 == 0){
@@ -502,9 +556,9 @@ void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, struct Typetable* 
                                 exit(1);
                                 }
                             }
-                            if ( t->children[0]->type->isPointer)
+                            if ( t->children[0]->type->generalType == POINTER)
                                 t->type = t->children[0]->type;
-                            else if ( t->children[1]->type->isPointer )
+                            else if ( t->children[1]->type->generalType == POINTER )
                                 t->type = t->children[1]->type;
                             else {
                                 t->type = t->children[0]->type;
@@ -547,18 +601,15 @@ void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, struct Typetable* 
                                     exit(1);
                                 } 
                             }
-                            break;
-                            }
-        case tupleMemberNode:{
-                            struct Fieldlist * f 
+                            break; }
+        case memberNode:{   struct Fieldlist * f 
                                 = FLookup(t->children[0]->type, t->children[1]->name);
                             if ( f == NULL ){
                                 printf("Trying to access undefined member of tuple\n");
                                 exit(1);
                             }
                             t->type = f->type;
-                            break;
-                            }
+                            break; }
     } 
 }
 
@@ -696,7 +747,7 @@ struct Lsymbol* addParamListToLsymbolTable(struct Paramstruct * pl, struct Lsymb
 
 // ----------------------------PRINTING-------------------------------------------------------------
 void printTree(struct tnode* t, struct tnode* p, int depth){
-    if ( t!= NULL && t->nodetype != GDeclNode){
+    if ( t!= NULL){
         for (int i=0;i<depth;i++) printf("- ");
         // if (p) printf("%s -> %s\n", printNode(p), printNode(t) );
         // else printf("%s\n", printNode(t) );
@@ -728,12 +779,17 @@ char * printNode( struct tnode* t ){
         case eqNode: return "eq";
         case neNode: return "ne";
         case ifNode: return "if";
+        case initNode: return "initNode";
+        case allocNode: return "allocNode";
+        case nullNode: return "nullNode";
         case ptrNode: return "ptrNode";
         case whileNode: return "while";
         case dowhileNode: return "dowhile";
         case repeatNode: return "repeat";
         case breakNode: return "break";
         case contNode: return "continue";
+        case typeDefNode: return "typeDef";
+        case fieldDeclNode: return "fieldDecl";
         case typeNode: return "typeNode";
         case arrTypeNode: return "arrType";
         case exprNode: return "exprNode";
@@ -743,7 +799,7 @@ char * printNode( struct tnode* t ){
         case GDeclNode: return "GDeclNode";
         case rootNode: return "rootNode";
         case FDefNode: return "FDefNode";
-        case tupleMemberNode: return "tupleMemberNode";
+        case memberNode: return "memberNode";
         case LDeclNode: return "LDeclNode";
         case returnNode: return "returnNode";
         case FBodyNode: return "FBodyNode";
@@ -767,6 +823,7 @@ char * printType( struct Typetable* t ){
 }
 
 void printX(char * s, int X, int val, int type){
+    if ( s == NULL ) return;
     int n = strlen(s);
     if ( type == 1 )
         printf("| %s", s);
