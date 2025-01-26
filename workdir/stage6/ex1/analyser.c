@@ -96,10 +96,7 @@ void GInstall(char *name, struct Typetable * type, int size, int fl){
     temp->next = NULL;
     temp->paramlist = NULL;
     temp->binding = SP;
-    // For Dynamic Allocation we only storing the pointer
-    if ( type->generalType == USER_DEF ) SP += 1;
-    // For Static ALlocation we need space = size
-    else SP += size;
+    SP += size;
 
     // Inserting in a linked list
     if ( symbolTable == NULL ){
@@ -129,7 +126,10 @@ void setGTypes(struct tnode* t, struct Typetable * type, struct Gsymbol* paramHe
         setGTypes( t -> children[1], type, paramHead);
     }
     else if( t->nodetype == idNode ){
-        GInstall( t->name, type, type->size, -1);
+        // For Dynamic Allocation we only storing the pointer
+        if ( type->generalType == USER_DEF ) GInstall( t->name, type, 1, -1);
+        // For Static ALlocation we need space = size
+        else GInstall( t->name, type, type->size, -1);
     }
     else if( t->nodetype == ptrNode ){
         GInstall( t->children[0]->name, make_pointer(type), 1, -1);
