@@ -1,0 +1,23 @@
+type
+	bst{
+		int a;
+	}
+endtype
+
+decl
+	bst t[5];
+enddecl
+
+int main()
+{
+	decl
+		int x;
+	enddecl
+	begin
+		x = initialize();
+		t[0] = alloc();
+		breakpoint;
+		write(t[0]);
+		return 0;
+	end
+}
