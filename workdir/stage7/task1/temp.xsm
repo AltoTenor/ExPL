@@ -1,0 +1,145 @@
+0
+2056
+0
+0
+0
+0
+0
+0
+MOV SP, 4096
+CALL MAIN
+EXIT:
+MOV     R1,"Exit"
+PUSH    R1
+PUSH    R1
+PUSH    R1
+PUSH    R1
+PUSH    R1
+CALL    0
+READ:
+PUSH    R0
+PUSH    R1
+MOV     R1 , "Read"
+PUSH    R1
+MOV     R1 , -1
+PUSH    R1
+MOV     R1 , R19
+PUSH    R1
+PUSH    R1
+PUSH    R1
+CALL    0
+POP     R0
+POP     R1
+POP     R1
+POP     R1
+POP     R1
+POP     R1
+POP     R0
+RET
+WRITE:
+PUSH    R0
+PUSH    R1
+MOV     R1, "Write"
+PUSH    R1
+MOV     R1, -2
+PUSH    R1
+MOV     R1, R19
+PUSH    R1
+PUSH    R1
+PUSH    R1
+CALL    0
+POP     R0
+POP     R1
+POP     R1
+POP     R1
+POP     R1
+POP     R1
+POP     R0
+RET
+INIT:
+MOV     R1, "Heapset"
+PUSH    R1
+PUSH    R1
+PUSH    R1
+PUSH    R1
+PUSH    R1
+CALL    0
+POP     R0
+POP     R1
+POP     R1
+POP     R1
+POP     R1
+RET
+ALLOC:
+MOV     R1, "Alloc"
+PUSH    R1
+MOV     R1, "8"
+PUSH    R1
+PUSH    R1
+PUSH    R1
+PUSH    R1
+CALL    0
+POP     R0
+POP     R1
+POP     R1
+POP     R1
+POP     R1
+RET
+FREE:
+MOV     R1, "Free"
+PUSH    R1
+MOV     R1, R19
+PUSH    R1
+PUSH    R1
+PUSH    R1
+PUSH    R1
+CALL    0
+POP     R0
+POP     R1
+POP     R1
+POP     R1
+POP     R1
+RET
+MAIN:
+MOV BP, SP
+ADD SP, 2
+MOV R0, BP
+ADD R0, 1
+MOV R1, 1
+MOV [R0], R1
+MOV R0, BP
+ADD R0, 2
+MOV R1, 1
+MOV [R0], R1
+MOV R0, BP
+ADD R0, 1
+MOV R0, [R0]
+MOV R1, BP
+ADD R1, 2
+MOV R1, [R1]
+EQ  R0, R1
+MOV R1, BP
+ADD R1, 1
+MOV R1, [R1]
+MOV R2, BP
+ADD R2, 2
+MOV R2, [R2]
+NE  R1, R2
+ADD  R0, R1
+JZ  R0, L0
+MOV R1, "True"
+MOV R19, R1
+CALL WRITE
+JMP L1
+L0:
+MOV R1, "false"
+MOV R19, R1
+CALL WRITE
+L1:
+MOV R0, 1
+POP R0
+POP R0
+RET
+POP R0
+POP R0
+RET

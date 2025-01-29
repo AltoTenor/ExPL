@@ -1,5 +1,5 @@
 decl
-  int n,arr[10],i,j,dup, BubbleSort(int first, int last);
+  int n,arr[40],i,j,dup, BubbleSort(int first, int last), BubbleSort(int x);
 enddecl
 
 int BubbleSort(int first, int last)
@@ -9,7 +9,7 @@ int BubbleSort(int first, int last)
   enddecl
 
   begin
-    if((first < last)) then
+    if(first < last) then
 
       if(arr[first] > arr[first+1]) then
         temp = arr[first];

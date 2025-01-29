@@ -1,10 +1,5 @@
 decl
-  int a,b,n,arr[10];
-  int swap(int index, int newindex);
-  int readarr(int temp);
-  str writearr(int temp);
-  int partition (int low, int high);
-  int quicksort(int low,int high);
+  int x;
 enddecl
 
 int main(){

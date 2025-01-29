@@ -182,7 +182,6 @@ void printGSymbolTable(){
     }
 }
 
-
 // ------------------------LOCAL SYMBOL TABLE-------------------------------------------------------
 
 struct Lsymbol * LInstall(char *name, struct Typetable* type, struct tnode* head){
@@ -453,7 +452,6 @@ void setTupleIDinLST(struct tnode * t, struct Typetable* type, struct tnode * LS
     }
 }
 
-
 // ---------------------------FUNC DECL-------------------------------------------------------------
 
 void checkFDef(struct tnode ** c, struct Gsymbol *  funcEntry){
@@ -507,6 +505,7 @@ void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, struct Typetable* 
                             }
                             break; 
                             }
+        
         case arrTypeNode:   // Checking Index Type
                             if ( t->children[1]->type !=  TLookup("int") ){
                                 printf("Indexing non-int address");
@@ -543,8 +542,10 @@ void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, struct Typetable* 
         case exprNode:     t->type = t->children[0]->type;
                             break;
 
+        
         case addrNode:{     t->type = make_pointer(t->children[0]->type);
                             break;}
+        
         case addNode:   
         case subNode:{      int op1 = t->children[0]->type->generalType == POINTER 
                                 && t->children[1]->type == TLookup("int");
@@ -567,6 +568,7 @@ void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, struct Typetable* 
                                 t->type = t->children[0]->type;
                             }
                             break;
+        
         case mulNode:   
         case divNode:       if (t->children[0]->type != TLookup("int")
                                 || t->children[1]->type != TLookup("int")){
@@ -574,19 +576,41 @@ void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, struct Typetable* 
                                 printf("Only INTs allowed for MUL and DIV! \n");
                                 exit(1);
                                 }
-                            break;       
+                            break;   
+
+        case geNode:
+        case leNode:
+        case ltNode:
+        case gtNode:
+        case eqNode:
+        case neNode:        if ( t->children[0]->type != t->children[1]->type ){
+                                printf("Type mismatch in relation op\n");
+                                exit(1);
+                            }    
+                            break;
+        
+        case andNode:
+        case orNode:        if ( t->children[0]->type != t->children[1]->type 
+                                ||  t->children[0]->type != TLookup("boolean") ){
+                                printf("Only Booleans allowed for AND/OR ops\n");
+                                exit(1);
+                            }    
+                            break;
+        
         case ifNode:    
         case whileNode:     if ( t->children[0]->type !=  TLookup("boolean") ){
                                 printf("If / Loop Condition Not Boolean");
                                 exit(1);
                             }
                             break;
+        
         case dowhileNode:
         case repeatNode:    if ( t->children[1]->type !=  TLookup("boolean") ){
                                 printf("Loop Condition Not Boolean");
                                 exit(1);
                             }
                             break;
+        
         case returnNode:    if (t->children[0]->type != retType){
                                 printf("Return Type Does not match\n");
                                 printf("Expected %s, returned %s\n", 
@@ -595,6 +619,7 @@ void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, struct Typetable* 
                                 exit(1);
                             }
                             break;
+        
         case funcCallNode:{ t->type = findType(t->children[0]);
                             if (t->children[1]){
                                 struct Paramstruct* argList = fetchArgList(t->children[1]); 
@@ -605,6 +630,7 @@ void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, struct Typetable* 
                                 } 
                             }
                             break; }
+        
         case memberNode:{   struct Fieldlist * f 
                                 = FLookup(t->children[0]->type, t->children[1]->name);
                             if ( f == NULL ){
@@ -613,8 +639,9 @@ void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, struct Typetable* 
                             }
                             t->type = f->type;
                             break; }
-        case freeNode: {    if ( t->children[0]->type->generalType == USER_DEF ){
-                                printf("Freeing a non user defined type");
+        
+        case freeNode: {    if ( t->children[0]->type->generalType != USER_DEF ){
+                                printf("Freeing a non user defined type: %s\n",t->children[0]->name);
                                 exit(1);
                             }
                             break;
