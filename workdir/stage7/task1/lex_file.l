@@ -27,6 +27,7 @@ digit [0-9]
 
 (class)             {   return CLASS; }
 (endclass)          {   return ENDCLASS; }
+(extends)          {   return EXTENDS; }
 
 (int)               {   return INT; }
 (str)               {   return STR; }

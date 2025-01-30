@@ -31,7 +31,7 @@
 }
 
 %type <no> Program GDeclBlock FDefBlock MainBlock TypeDefBlock ClassDefBlock
-%type <no> ClassDefList ClassDef Cname MethodDecl MethodDefns MDecl
+%type <no> ClassDefList ClassDef Cname MethodDecl MethodDefns MDecl Mdef
 %type <no> GDeclList GDecl GidList Gid
 %type <no> Fdef LdeclBlock Body LDecList LDecl FuncBody
 %type <no> slist stmt AsgStmt InputStmt OutputStmt IfStmt WhileStmt DoWhileStmt RepeatStmt ReturnStmt
@@ -108,25 +108,44 @@ FieldDecl : Type ID ';' {
 ;
 
 /* Class Declarations */
-ClassDefBlock : CLASS ClassDefList ENDCLASS 
+ClassDefBlock : CLASS ClassDefList ENDCLASS { $$ = $2; }
     | { $$ = NULL; }
 ;
-ClassDefList : ClassDefList ClassDef
-    | ClassDef
+ClassDefList : ClassDefList ClassDef {
+        $$ = createTree(NULL, NULL, "void", connectorNode,  alloc_2($1, $2) , 2 , NULL, NULL); 
+    }
+    | ClassDef { $$ = $1; }
 ;
-ClassDef : Cname '{' DECL FieldDeclList MethodDecl ENDDECL MethodDefns '}'
+ClassDef : Cname '{' DECL FieldDeclList MethodDecl ENDDECL MethodDefns '}' {
+        $$ = createTree(NULL, NULL, "void", classDefNode,  alloc_4($1, $4, $5, $7) , 4 , NULL, NULL);
+    }
 ;
-Cname : ID { }
-    | ID EXTENDS ID { }
+Cname : ID { $$ = $1; }
+    | ID EXTENDS ID { $$ = NULL; }
 ;
-MethodDecl : MethodDecl MDecl {}
-    | MDecl {}
+MethodDecl : MethodDecl MDecl { 
+        $$ = createTree(NULL, NULL, "void", connectorNode,  alloc_2($1, $2) , 2 , NULL, NULL); 
+    }
+    | MDecl { $$ = $1; }
 ;
-MDecl : Type ID '(' ParamList ')' ';' { }
-    | Type ID '(' ')' ';' {}
+MDecl : Type ID '(' ParamList ')' ';' { 
+        $$ = createTree(NULL, NULL, "void", MDeclNode,  alloc_3($1, $2, $4) , 3 , NULL, NULL); 
+    }
+    | Type ID '(' ')' ';' { 
+        $$ = createTree(NULL, NULL, "void", MDeclNode,  alloc_3($1, $2, NULL) , 3 , NULL, NULL); 
+    }
 ;
-MethodDefns : MethodDefns Fdef { }
-    | Fdef { }
+MethodDefns : MethodDefns Mdef { 
+        $$ = createTree(NULL, NULL, "void", connectorNode,  alloc_2($1, $2) , 2 , NULL, NULL); 
+    }
+    | Mdef { $$ = $1; }
+;
+Mdef : Type ID '(' ParamList ')' '{' FuncBody '}' { 
+        $$ = createTree(NULL, NULL, "void", MDefNode, alloc_4($1, $2, $4, $7), 4, NULL, NULL);
+    }
+    | Type ID '(' ')' '{' FuncBody '}' { 
+        $$ = createTree(NULL, NULL, "void", MDefNode, alloc_4($1, $2, NULL, $6), 4, NULL, NULL);
+    }
 ;
 
 /* Global Declarations */

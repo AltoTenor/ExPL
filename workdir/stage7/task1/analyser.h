@@ -68,6 +68,10 @@ typedef enum {
     nullNode = 72,
     freeNode = 74,
 
+    classDefNode = 76,
+    MDeclNode = 78,
+    MDefNode = 80,
+
     rootNode = 50,
 
 } NodeType;

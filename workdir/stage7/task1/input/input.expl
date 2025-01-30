@@ -30,6 +30,7 @@ class Person{
         end
     }
 }
+endclass
 int main(){
 	decl
 		int x,y;

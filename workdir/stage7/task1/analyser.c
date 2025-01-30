@@ -816,6 +816,9 @@ char * printNode( struct tnode* t ){
         case eqNode: return "eq";
         case neNode: return "ne";
         case ifNode: return "if";
+        case classDefNode: return "classDefNode";
+        case MDeclNode: return "MDeclNode";
+        case MDefNode: return "MDefNode";
         case initNode: return "initNode";
         case allocNode: return "allocNode";
         case nullNode: return "nullNode";
