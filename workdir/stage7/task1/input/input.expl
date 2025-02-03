@@ -1,48 +1,42 @@
-class Person{
+class 
+Person{
     decl
-        str name;
         int age;
-        int printDetails();
-        str findName();
-        int createPerson(str name, int age);
+        int printDetails(int a);
     enddecl
-    int printDetails(){
+    int printDetails(int a){
         decl
+            Person obj;
         enddecl
         begin
-            write(x);
-            write(y);
+            a = self.printDetails(a);
+            write(self.age);
             return 1;
         end
     }
-    str findName(){
-        decl
-        enddecl
+}
+Person2{
+    decl
+        int age;
+        Person obj;
+        int printDetails(int a);
+    enddecl
+    int printDetails(int a){
         begin
-            return 0;
-        end
-    }
-    int createPerson(str name, int age){
-        decl
-        enddecl
-        begin
+            a = self.obj.printDetails(a);
+            write(self.age);
             return 1;
         end
     }
 }
 endclass
+decl 
+    Person o1;
+    int x;
+enddecl
 int main(){
-	decl
-		int x,y;
-	enddecl
 	begin
-		x = 1;
-		y = 1;
-		if ( x==y || x!=y ) then
-			write("True");
-		else
-			write("false");
-		endif;
+        x = o1.printDetails(x);
 		return 1;
 	end
 }

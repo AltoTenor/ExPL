@@ -72,6 +72,9 @@ typedef enum {
     MDeclNode = 78,
     MDefNode = 80,
 
+    CNameNode = 82,
+    selfNode = 84,
+
     rootNode = 50,
 
 } NodeType;
@@ -81,9 +84,11 @@ typedef enum {
     TYPE_TUPLE = 1, 
     POINTER = 2,
     USER_DEF = 3,
+    CLASS_TYPE = 4,
 } GeneralType;
 
-
+/* ---------------------------------------------------------------------------------------------- */
+/* STRUCTS */
 typedef struct tnode {
     char* name;
     union Constant value;
@@ -92,21 +97,18 @@ typedef struct tnode {
     struct Gsymbol *Gentry;     // pointer to GST entry for global variables and functions
     struct Lsymbol *Lentry;
     struct tnode **children;
+    struct Classtable *Ctype;
     int childcount;
 }tnode;
 
-/*Create a node tnode*/
-struct tnode* createTree(   char* name,
-                            union Constant* c,  
-                            char* type, 
-                            int nodetype, 
-                            struct tnode **children, 
-                            int childcount,
-                            struct Gsymbol * Gentry,
-                            struct Lsymbol * Lentry  );
-
-/* ---------------------------------------------------------------------------------------------- */
-/* GLOBAL SYMBOL TABLE */
+struct Typetable{
+    char *name;                 //type name
+    int size;                   //size of the type
+    int generalType;              //
+    struct Fieldlist *fields;   //pointer to the head of fields list
+    struct Typetable *next;     // pointer to the next type table entry
+    struct Classtable *Ctype;
+};
 
 struct Gsymbol{
     char *name;                         //name of the variable or function
@@ -118,6 +120,62 @@ struct Gsymbol{
     struct Gsymbol *next;               //points to the next Global Symbol Table entry
 }; 
 
+struct Lsymbol{
+    char *name;                 //name of the variable
+    struct Typetable* type;     //pointer to the Typetable entry of variable type
+    int binding;                //stores memory address allocated to the variable
+    struct Lsymbol *next;       //points to the next Local Symbol Table entry
+};
+
+struct Fieldlist{
+  char *name;              //name of the field
+  int fieldIndex;          //the position of the field in the field list
+  struct Typetable *type;  //pointer to type table entry of the field's type
+  struct Fieldlist *next;  //pointer to the next field
+};
+
+struct Paramstruct{
+    char *name;                     //stores the name of the parameter
+    struct Typetable* type;                       //pointer to type table entry of parameter type
+    int checked;                    //pointer to type table entry of parameter type
+    struct Paramstruct *next;       //pointer to the next parameter
+};
+
+struct MemberFunclist {
+    char * methodName;                         //name of the member function in the class
+    struct Typetable * type;             //pointer to typetable
+    struct Paramstruct * paramlist;      //pointer to the head of the formal parameter list
+    int funcposition;                   //position of the function in the class table
+    int flabel;                         //A label for identifying the starting address of the function's code in the memory
+    struct MemberFunclist *next;        //pointer to next Memberfunclist entry
+};
+
+struct Classtable {
+    char * className;                         //name of the class
+    struct Fieldlist *memberField;      //pointer to Fieldlist
+    struct MemberFunclist *vFuncptr;    //pointer to Memberfunclist
+    struct Classtable *parentPtr;       //pointer to the parent's class table
+    int classIndex;                    //position of the class in the virtual function table
+    int fieldCount;                     //count of fields
+    int methodCount;                    //count of methods
+    struct Classtable *next;            //pointer to next class table entry
+};
+
+
+/* ---------------------------------------------------------------------------------------------- */
+/*Create a node tnode*/
+struct tnode* createTree(   char* name,
+                            union Constant* c,  
+                            char* type, 
+                            int nodetype, 
+                            struct tnode **children, 
+                            int childcount,
+                            struct Gsymbol * Gentry,
+                            struct Lsymbol * Lentry  );
+
+/* ---------------------------------------------------------------------------------------------- */
+/* GLOBAL SYMBOL TABLE FUNCTIONS */
+
 // Creates a Global symbol table entry.
 void GInstall(char *name, struct Typetable * typename, int size, int fl);
 // Returns a pointer to the symbol table entry for the variable, returns NULL otherwise.
@@ -128,14 +186,7 @@ void setGTypes(struct tnode* t, struct Typetable * type, struct Gsymbol* paramHe
 void printGSymbolTable();
 
 /* ---------------------------------------------------------------------------------------------- */
-/* LOCAL SYMBOL TABLE */
-
-struct Lsymbol{
-    char *name;                 //name of the variable
-    struct Typetable* type;     //pointer to the Typetable entry of variable type
-    int binding;                //stores memory address allocated to the variable
-    struct Lsymbol *next;       //points to the next Local Symbol Table entry
-};
+/* LOCAL SYMBOL TABLE FUNCTIONS */
 
 // Creates a local symbol table entry.
 struct Lsymbol * LInstall(char *name, struct Typetable* type, struct tnode* head);
@@ -151,23 +202,12 @@ struct Lsymbol * joinLsymbols(struct Lsymbol * Lentry1, struct Lsymbol * Lentry2
 void addBindingAddr(struct Lsymbol* Lentry);
 /* ---------------------------------------------------------------------------------------------- */
 /* TYPE TABLE */
-struct Typetable{
-    char *name;                 //type name
-    int size;                   //size of the type
-    int generalType;              //
-    struct Fieldlist *fields;   //pointer to the head of fields list
-    struct Typetable *next;     // pointer to the next type table entry
-};
-
-struct Fieldlist{
-  char *name;              //name of the field
-  int fieldIndex;          //the position of the field in the field list
-  struct Typetable *type;  //pointer to type table entry of the field's type
-  struct Fieldlist *next;  //pointer to the next field
-};
 
 // Insert a new type record
-struct Typetable* TInstall(char *name,int size, struct Fieldlist *fields, GeneralType gt);
+struct Typetable* TInstall( char *name, int size, 
+                            struct Fieldlist *fields, 
+                            GeneralType gt, 
+                            struct Classtable * Ctype);
 // Search for a type record
 struct Typetable* TLookup(char *name);
 // Initialize INT / STR / BOOLEAN / NULL / VOID 
@@ -195,7 +235,10 @@ void setTupleIDinLST(struct tnode * t, struct Typetable* type, struct tnode * LS
 /* FUNCTION VERIFICATION */
 void checkFDef(struct tnode ** c, struct Gsymbol *  funcEntry);
 // Checking all variables and statements are of valid types or not
-void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, struct Typetable* retType);
+void assignVarTypes(struct tnode* t, 
+                    struct Lsymbol * Lentry, 
+                    struct Typetable* retType,
+                    struct Classtable * classEntry );
 // Find type of the node in a tree
 struct Typetable* findType(struct tnode * t);
 
@@ -207,17 +250,39 @@ int verifyArgTypes(struct Paramstruct* argList, struct Paramstruct* paramList );
 /* ---------------------------------------------------------------------------------------------- */
 /* PARAM LIST FUNCTIONS */
 
-struct Paramstruct{
-    char *name;                     //stores the name of the parameter
-    struct Typetable* type;                       //pointer to type table entry of parameter type
-    int checked;                    //pointer to type table entry of parameter type
-    struct Paramstruct *next;       //pointer to the next parameter
-};
-
+// Given a GST Function entry, insert a parameter to the function 
 void insertIntoParamList(struct Gsymbol* paramHead, struct Paramstruct* cur);
+// Given a paramlist find if a param exists or not
 struct Paramstruct* searchParamList(struct Paramstruct* head, char* name);
+// Used to check if the argument list matches with the functions previously declared params
 void compareParamList(struct tnode * t, struct Paramstruct *paramlist);
+// Adds the parameters as variables to the local symbol table
 struct Lsymbol* addParamListToLsymbolTable(struct Paramstruct * pl, struct Lsymbol* table);
+
+/* ---------------------------------------------------------------------------------------------- */
+/* OExpl Functions - Related to Classes */
+
+// Install a new entry into the class table
+struct Classtable* CInstall(char *name, struct Classtable * parent);
+// Looking up a new Class Table Entry 
+struct Classtable* CLookup(char *name);
+// To Fetch the list of function Methods from the AST
+struct MemberFunclist * constructMethodList(struct tnode * t);
+// To Fetch the list of parameters for a method of a class in AST
+struct Paramstruct* constructMethodParamList(struct tnode* t);
+// To make a new method to add to the list
+struct MemberFunclist * MInstall(char * memberName, 
+                                 struct Typetable * type, 
+                                 struct Paramstruct * paramlist);
+// Check the defintion matches the declaration 
+// and checks return type and arglist and also checks the Fbody
+void checkMDef(struct tnode* t, struct Classtable* CTEntry);
+// Look up a method for a class
+struct MemberFunclist * MethodLookup(char * name, struct Classtable* CT);
+// Look up a member for a class based on name
+struct Fieldlist * MemberLookup(char * name, struct Classtable* CT);
+// Helper Function to print the class table
+void printClassTable();
 
 /* ---------------------------------------------------------------------------------------------- */
 /* Printing Tree Nodes */
@@ -225,4 +290,4 @@ void printTree(struct tnode* t, struct tnode* p, int depth);
 char * printNode( struct tnode* t );
 void printX(char * s, int X, int val, int type);
 char * printType( struct Typetable* t );
-
+char * printClass( struct Classtable* t );

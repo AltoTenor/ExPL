@@ -34,6 +34,7 @@ digit [0-9]
 (tuple)             {   return TUPLE; }
 (null)              {   return NULL_KEYWORD; }
 (free)              {   return FREE; }
+(self)              {   return SELF; }
 
 (main)              {   yylval.no = createTree("main", NULL, NULL, idNode,  NULL , 0 , NULL, NULL); return MAIN; }
 (return)            {   return RETURN; }

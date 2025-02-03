@@ -6,6 +6,7 @@
 
 struct Gsymbol * symbolTable;
 struct Typetable * typeTable;
+struct Classtable* classTable;
 int SP;
 int *arr;
 int globalFlabel;
@@ -66,14 +67,70 @@ struct tnode* createTree(   char* name,
 
                             // Make LST accessible to all Body and skip the Local Declarations
                             if ( strcmp(children[1]->name, "main")!=0 )
-                                assignVarTypes(children[3]->children[1], Lentry, funcEntry->type);
+                                assignVarTypes(children[3]->children[1], Lentry, funcEntry->type, NULL);
                             else
-                                assignVarTypes(children[3]->children[1], Lentry, TLookup("int"));
+                                assignVarTypes(children[3]->children[1], Lentry, TLookup("int"), NULL);
+                            break;
+                        }
+        
+        case classDefNode:{ // Make the Class Table Entry
+                            struct Classtable * cur = CLookup(children[0]->name);
+                            cur->memberField = fetchFieldList(children[1]);
+                            cur->vFuncptr = constructMethodList(children[2]);
+                            // Redeclare Checks
+                            int fc = 0, mc = 0;
+                            struct Fieldlist * i = cur->memberField;
+                            while (i){
+                                struct Fieldlist * j = cur->memberField;
+                                while (j){
+                                    if ( i->fieldIndex != j->fieldIndex 
+                                        && strcmp(i->name, j->name) == 0){
+                                        printf("Variable Redeclared: %s\n", i->name); 
+                                        exit(1);
+                                    }
+                                    j = j->next;
+                                }
+                                i = i->next; mc++;
+                            }
+                            struct MemberFunclist * x = cur->vFuncptr;
+                            while (x){
+                                struct MemberFunclist * y = cur->vFuncptr;
+                                while (y){
+                                    if ( x->funcposition != y->funcposition 
+                                        && strcmp(x->methodName, y->methodName) == 0){
+                                        printf("Function Redeclared: %s\n", x->methodName); 
+                                        exit(1);
+                                    }
+                                    y = y->next;
+                                }
+                                x = x->next; fc++;
+                            }
+                            cur ->fieldCount = fc;
+                            cur ->methodCount = mc;
+                            // Parse Body of Definitions
+                            checkMDef(children[3], cur);
+
+                            break;
+                        }
+        
+        case CNameNode: {   // Setting up parent class if present
+                            if ( children[1] ){
+                                struct Classtable * p = CLookup(children[1]->name);
+                                if ( p == NULL ){
+                                    printf("Invalid Parent Inheritance\n");
+                                    exit(1);
+                                }
+                                CInstall(children[0]->name, p);
+                            }
+                            else CInstall(children[0]->name, NULL);
+                            temp->name = (char*)malloc(20*sizeof(char));
+                            strcpy(temp->name, children[0]->name);
                             break;
                         }
     }
     temp->children = children;
     temp->Lentry = Lentry;
+    temp->Ctype = NULL;
     return temp;
 }
 
@@ -266,7 +323,10 @@ void addBindingAddr(struct Lsymbol* Lentry){
 
 // ---------------------------TYPE TABLE------------------------------------------------------------
 
-struct Typetable* TInstall(char *name, int size, struct Fieldlist *fields, GeneralType gt){
+struct Typetable* TInstall( char *name, int size, 
+                            struct Fieldlist *fields, 
+                            GeneralType gt, 
+                            struct Classtable * Ctype){
     struct Typetable* temp = (struct Typetable*)malloc(sizeof(struct Typetable));
     
     temp->name = (char *)malloc(sizeof(char)*20);
@@ -274,6 +334,7 @@ struct Typetable* TInstall(char *name, int size, struct Fieldlist *fields, Gener
     temp->size = size;
     temp->fields = fields;
     temp->generalType = gt;
+    temp->Ctype = Ctype;
     temp->next = NULL;
 
 
@@ -301,11 +362,11 @@ struct Typetable* TLookup(char *name){
 
 void TypeTableCreate(){
     typeTable = NULL;
-    TInstall("int",1 , NULL, PRIMITIVE);
-    TInstall("str",1 , NULL, PRIMITIVE);
-    TInstall("boolean",1 , NULL, PRIMITIVE);
-    TInstall("null",0 , NULL, PRIMITIVE);
-    TInstall("void",0 , NULL, PRIMITIVE);
+    TInstall("int",1 , NULL, PRIMITIVE, NULL);
+    TInstall("str",1 , NULL, PRIMITIVE, NULL);
+    TInstall("boolean",1 , NULL, PRIMITIVE, NULL);
+    TInstall("null",0 , NULL, PRIMITIVE, NULL);
+    TInstall("void",0 , NULL, PRIMITIVE, NULL);
 }
 
 struct Typetable* make_pointer(struct Typetable* type){
@@ -316,7 +377,7 @@ struct Typetable* make_pointer(struct Typetable* type){
         struct Fieldlist * f = (struct Fieldlist*)malloc(sizeof(struct Fieldlist));
         f->type = type;
         f->fieldIndex = 0;
-        TInstall(newPtrType, 1, f, POINTER);
+        TInstall(newPtrType, 1, f, POINTER, NULL);
         tt = TLookup(newPtrType);
     }
     return tt;
@@ -412,7 +473,7 @@ void initTuple(struct tnode **children, struct tnode * LSThead){
     }
     // Try to add checks for field list is same or not
     struct Typetable* type = TLookup(children[0]->name);
-    if (type == NULL ) type = TInstall( children[0]->name, size, f, TYPE_TUPLE);
+    if (type == NULL ) type = TInstall( children[0]->name, size, f, TYPE_TUPLE, NULL);
 
     if ( LSThead == NULL ) setTupleIDinGST(children[2], type);
     else setTupleIDinLST(children[2], type, LSThead);
@@ -474,16 +535,15 @@ void checkFDef(struct tnode ** c, struct Gsymbol *  funcEntry){
     }
 }
 
-void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, struct Typetable* retType){
+void assignVarTypes(struct tnode* t, 
+                    struct Lsymbol * Lentry, 
+                    struct Typetable* retType,
+                    struct Classtable * classEntry ){
     // Anything to be done while going down
     // Recursive Calls
-    if ( t->nodetype == memberNode ){
-        assignVarTypes(t->children[0], Lentry, retType);
-    }
-    else{
-        for (int i = 0; i < t->childcount; i++ ){
-            if (t->children[i]) assignVarTypes(t->children[i], Lentry, retType);
-        }
+    if ( t->nodetype == memberNode ) assignVarTypes(t->children[0], Lentry, retType, classEntry);
+    else for (int i = 0; i < t->childcount; i++ ){
+            if (t->children[i]) assignVarTypes(t->children[i], Lentry, retType, classEntry);
     }
     // Doing checks while coming up 
     switch (t->nodetype){
@@ -539,7 +599,7 @@ void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, struct Typetable* 
                             t->type = t->children[0]->type->fields->type;
                             break;
         
-        case exprNode:     t->type = t->children[0]->type;
+        case exprNode:      t->type = t->children[0]->type;
                             break;
 
         
@@ -620,25 +680,81 @@ void assignVarTypes(struct tnode* t, struct Lsymbol * Lentry, struct Typetable* 
                             }
                             break;
         
-        case funcCallNode:{ t->type = findType(t->children[0]);
+        case funcCallNode:{ // Assign Type from GST or from child node ( if class )
+                            if ( t->children[0]->Ctype ) t->type = t->children[0]->type;
+                            else t->type = t->children[0]->Gentry->type;
+
                             if (t->children[1]){
                                 struct Paramstruct* argList = fetchArgList(t->children[1]); 
-                                if ( verifyArgTypes(argList, t->children[0]->Gentry->paramlist)==0){
+                                /* If function exists in Global Symbol Table */
+                                if ( t->children[0]->Gentry 
+                                && verifyArgTypes(argList, t->children[0]->Gentry->paramlist)==0 ){
                                     printf("Wrong Args passed to %s\n", 
                                             t->children[0]->Gentry->name);
                                     exit(1);
                                 } 
+                                /* If left child (memNode) has a class in its node */
+                                else if ( t->children[0]->Ctype ){
+                                    struct MemberFunclist * method 
+                                        = MethodLookup( t->children[0]->children[1]->name, 
+                                                        t->children[0]->Ctype);
+                                    if (verifyArgTypes( argList, method->paramlist ) == 0 ) {
+                                        printf("Wrong Args passed to %s\n", 
+                                                t->children[0]->children[1]->name);
+                                        exit(1);
+                                    }
+                                } 
                             }
-                            break; }
+                            break; 
+                        }
         
-        case memberNode:{   struct Fieldlist * f 
-                                = FLookup(t->children[0]->type, t->children[1]->name);
-                            if ( f == NULL ){
-                                printf("Trying to access undefined member of tuple\n");
-                                exit(1);
+        case memberNode:{   /* To handle - self.x or self.func()
+                                If leftside is selfNode then assign type directly if node is member
+                                Else if node refers to function then assign return type and Class
+                                to the node */
+                            if (t->children[0]->nodetype == selfNode) {
+                                if ( classEntry == NULL ){
+                                    printf("Keyword \"self\" used outside class definition\n");
+                                    exit(1);   
+                                }
+                                struct Fieldlist * mem 
+                                    = MemberLookup(t->children[1]->name, classEntry);
+                                struct MemberFunclist * met 
+                                    = MethodLookup(t->children[1]->name, classEntry);
+                                if ( mem == NULL && met == NULL){
+                                    printf("self.%s does not exist\n", t->children[1]->name);
+                                    exit(1);   
+                                }
+                                if (mem != NULL) t->type = mem->type;
+                                if (met != NULL) t->type = met->type;
+                                t->Ctype = classEntry;
+                                break;
                             }
-                            t->type = f->type;
-                            break; }
+                            /* To handle - self.obj.func()
+                                Checks if self.obj is of type CLASS or not. If yes change Ctype of
+                                node and also check if function exists */
+                            if  ( t->children[0]->type->generalType == CLASS_TYPE ){
+                                struct MemberFunclist * met 
+                                    = MethodLookup( t->children[1]->name, 
+                                                    t->children[0]->type->Ctype);
+                                if ( met == NULL){
+                                    printf("self.X.%s does not exist\n", t->children[1]->name);
+                                    exit(1);   
+                                }
+                                t->type = met->type;
+                                t->Ctype = t->children[0]->type->Ctype;
+                                break;
+                            }
+                            // Tuples and user defined types 
+                            if  (   t->children[0]->type->generalType == USER_DEF 
+                                ||  t->children[0]->type->generalType == TYPE_TUPLE ){
+                                struct Fieldlist * f 
+                                    = FLookup(t->children[0]->type, t->children[1]->name);
+                                if ( f == NULL ){ printf("Undefined Member access\n"); exit(1); }
+                                t->type = f->type;
+                                break;
+                            }
+                        }
         
         case freeNode: {    if ( t->children[0]->type->generalType != USER_DEF ){
                                 printf("Freeing a non user defined type: %s\n",t->children[0]->name);
@@ -781,6 +897,226 @@ struct Lsymbol* addParamListToLsymbolTable(struct Paramstruct * pl, struct Lsymb
     return head;
 }
 
+// ----------------------------CLASS TABLE-------------------------------------------------------------
+struct Classtable* CInstall(char *name, struct Classtable * parent){
+    struct Classtable* temp = (struct Classtable*)malloc(sizeof(struct Classtable));
+
+    temp->className = (char*)malloc(sizeof(char)*20);
+    strcpy(temp->className, name);
+    temp->memberField = NULL;      
+    temp->vFuncptr = NULL;    
+    temp->parentPtr = parent;
+    temp->classIndex = -1;
+    temp->fieldCount = -1;                     
+    temp->methodCount = -1;                    
+    temp->next = NULL;
+    
+    // Adding to class table
+    if ( classTable == NULL ) classTable = temp;
+    else{
+        struct Classtable* t = classTable;
+        while ( t->next ) t = t->next;
+        t->next = temp;
+    }
+
+    // Adding class to type table
+    TInstall(name, 2, NULL, CLASS_TYPE, temp);
+    return temp;
+}
+
+struct Classtable* CLookup(char *name){
+    if ( name == NULL ) return NULL;
+    struct Classtable * t = classTable;
+    while(t){
+        if ( strcmp(t->className , name ) == 0 ){
+            return t;
+        }
+        t = t->next;
+    }
+    return NULL;
+}
+
+struct MemberFunclist * constructMethodList(struct tnode * t){
+    if ( t->nodetype == connectorNode ){
+        struct MemberFunclist * head = NULL;
+        struct MemberFunclist * tail = NULL;
+        for (int i=0;i<t->childcount;i++){ 
+            if ( head == NULL ) head = constructMethodList(t->children[i]);
+            else {
+                tail = head;
+                while ( tail->next ) tail = tail->next;
+                tail -> next = constructMethodList(t->children[i]);
+                // Reassigning Function Position Numbers
+                tail = head; int pos = 0;
+                while (tail) { tail->funcposition = pos++; tail = tail->next; }
+            }
+        }
+        return head;
+    }
+    else if (t->nodetype == MDeclNode ){
+        struct Paramstruct* paramlist = constructMethodParamList(t->children[2]);
+        struct Paramstruct* i = paramlist;
+
+        // Checking if the paramlist has any repeating fields
+        int i1 = 0, j1 = 0;
+        while (i){
+            struct Paramstruct* j = paramlist; j1 = 0;
+            while (j){
+                if ( i1 != j1 && strcmp(i->name, j->name) == 0){
+                    printf("Variable Redeclared: %s\n", i->name); 
+                    exit(1);
+                }
+                j = j->next; j1++;
+            }
+            i = i->next; i1++;
+        }
+        return MInstall( t->children[1]->name, t->children[0]->type, paramlist);
+        
+    }
+    else { printf("Invalid Node\n"); exit(1); }
+}
+
+struct Paramstruct* constructMethodParamList(struct tnode* t){
+    if ( t == NULL ) return NULL;
+    if ( t->nodetype == connectorNode ){
+        struct Paramstruct * head = NULL;
+        struct Paramstruct * tail = NULL;
+        for (int i=0;i<t->childcount;i++){ 
+            if ( head == NULL ) head = constructMethodParamList(t->children[i]);
+            else {
+                tail = head;
+                while ( tail->next ) tail = tail->next;
+                tail -> next = constructMethodParamList(t->children[i]);
+            }
+        }
+        return head;
+    }
+    else if (t->nodetype == paramNode ){
+        struct Paramstruct* temp = (struct Paramstruct*)malloc(sizeof(struct Paramstruct));
+        temp->name = (char*)malloc(sizeof(char)*20);
+        strcpy(temp->name, t->children[1]->name);
+        temp->type = t->children[0]->type;
+        temp->checked = 0;
+        temp->next = NULL;
+        return temp;
+    }
+    else { printf("Invalid Node\n"); exit(1); }
+}
+
+struct MemberFunclist * MethodLookup(char * name, struct Classtable* CT){
+    struct MemberFunclist * temp = CT->vFuncptr;
+    while (temp){
+        if ( strcmp(temp->methodName, name) == 0 ) return temp;
+        temp = temp->next;
+    }
+    return NULL;
+}
+
+struct Fieldlist * MemberLookup(char * name, struct Classtable* CT){
+    struct Fieldlist * temp = CT->memberField;
+    while (temp){
+        if ( strcmp(temp->name, name) == 0 ) return temp;
+        temp = temp->next;
+    }
+    return NULL;
+}
+
+struct MemberFunclist * MInstall(char * methodName, 
+                                 struct Typetable * type, 
+                                 struct Paramstruct * paramlist){
+
+    struct MemberFunclist * temp = (struct MemberFunclist *)malloc(sizeof(struct MemberFunclist));
+    
+    temp->methodName = (char*)malloc(sizeof(char)*20);
+    strcpy(temp->methodName, methodName);
+    temp->type = type;
+    temp->paramlist = paramlist;
+    temp->flabel = globalFlabel++;
+    temp->funcposition = 0;
+    temp->next = NULL;
+    return temp;
+}
+
+void checkMDef(struct tnode* t, struct Classtable* CTEntry){
+    // printf("%d\n", t->nodetype);
+    if ( t->nodetype == connectorNode ){
+        for (int i=0;i<t->childcount;i++) checkMDef(t->children[i], CTEntry);
+    }
+    else if ( t->nodetype == MDefNode ){
+        struct MemberFunclist * method = MethodLookup(t->children[1]->name, CTEntry);
+        // Checking if return type matches
+        if ( method->type != t->children[0]->type ){
+            printf("Mismatch in Return Type: %s\n", t->children[1]->name);
+            printf("Should be: %s\n", method->type->name);
+            printf("Found to be: %s\n", t->children[0]->type->name);
+            exit(1);
+        }
+        // Checking if all arguments match or not
+        if (t->children[2]) compareParamList(t->children[2], method->paramlist);
+        struct Paramstruct * p = method->paramlist;
+        while ( p ){
+            if ( p->checked == 0 ){
+                printf("Variable in Declaration not found in Definition: %s\n", p->name);
+                exit(1);
+            }
+            p = p->next;
+        }
+        // printLSymbolTable(t->children[3]->Lentry);
+        // Checking everything else works or not
+         if (t->children[2] != NULL){
+            t->Lentry = addParamListToLsymbolTable(method->paramlist, t->children[3]->Lentry);
+        }
+
+        addBindingAddr(t->Lentry);
+
+        // Make LST accessible to all Body and skip the Local Declarations
+        assignVarTypes(t->children[3]->children[1], t->Lentry, t->children[0]->type, CTEntry);
+        printf("LST for Class: %s \nFunction: %s\n",CTEntry->className, t->children[1]->name);
+        printLSymbolTable(t->Lentry);
+    }
+}
+
+void printClassTable(){
+    struct Classtable* temp = classTable;
+    printf("Class Table \n");
+    printf("| ClassName | Index | FieldCount | MemberCount| Parent\n"); 
+    while (temp){
+        printX(temp->className, 12, -1, 1);
+        printX("", 6, temp->classIndex, 2);
+        printX("", 11, temp->fieldCount, 2);
+        printX("", 11, temp->methodCount, 2);
+        if ( temp->parentPtr ) printX(temp->parentPtr->className, 11, -1, 1);
+        else printX("(nil)", 11, -1, 1);
+        struct Fieldlist * f = temp->memberField;
+        printf("\n-> Class Members: \n");
+        printf("-- | Name | Type | FieldIndex |\n");
+        while(f){
+            printf("-- ");
+            printX(f->name, 7, -1, 1);
+            printX(f->type->name, 7, -1, 1);
+            printX("", 6, f->fieldIndex, 2);
+            printf("\n");
+            f = f->next; 
+        }
+        printf("-> Class Functions/Methods: \n");
+        printf("-- | Name        | Type | Flabel | Funcpos |\n");
+        struct MemberFunclist * g = temp->vFuncptr;
+        while(g){
+            printf("-- ");
+            printX(g->methodName, 14, -1, 1);
+            printX(g->type->name, 7, -1, 1);
+            printX("", 8, g->flabel, 2);
+            printX("", 10, g->funcposition, 2);
+            printf("\n");
+            g = g->next; 
+        }
+        printf("\n");
+        temp = temp->next; 
+    }
+    printf("\n");
+    printf("\n");
+}
+
 // ----------------------------PRINTING-------------------------------------------------------------
 void printTree(struct tnode* t, struct tnode* p, int depth){
     if ( t!= NULL){
@@ -790,7 +1126,13 @@ void printTree(struct tnode* t, struct tnode* p, int depth){
         struct Typetable* a = NULL,*b = NULL;
         if (t->Gentry) a = t->Gentry->type;
         if (t->Lentry) b = t->Lentry->type;
-        printf("%s (%s, %s, %s) \n", printNode(t), printType(t->type), printType(a), printType(b) );
+        printf("%s (%s, %s, %s, %s) \n", 
+            printNode(t), 
+            printType(t->type), 
+            printType(a), 
+            printType(b),
+            printClass(t->Ctype)
+        );
         for (int i = 0; i < (t->childcount) ;  i++){
             printTree(t->children[i], t, depth+1);
         }
@@ -808,6 +1150,8 @@ char * printNode( struct tnode* t ){
         case divNode: return "Div";
         case mulNode: return "Mul";
         case modNode: return "Mod";
+        case CNameNode: return "CName";
+        case selfNode: return "self";
         case geNode: return "ge";
         case leNode: return "le";
         case gtNode: return "gt";
@@ -859,6 +1203,10 @@ char * printNode( struct tnode* t ){
 
 char * printType( struct Typetable* t ){
     if ( t ) return (t->name);
+    else return "";
+}
+char * printClass( struct Classtable* t ){
+    if ( t ) return (t->className);
     else return "";
 }
 

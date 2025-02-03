@@ -24,6 +24,7 @@
     extern int SP;
     extern int globalFlabel;
     extern struct Gsymbol * symbolTable;
+    extern struct Classtable * classTable;
 %}
 
 %union{
@@ -39,7 +40,7 @@
 %type <no> TypeDefList TypeDef FieldDeclList FieldDecl NewTypeID
 
 %token <no> START END DECL ENDDECL BRKP MAIN RETURN TUPLE TYPE ENDTYPE
-%token <no> ID STR INT NUM STRING READ WRITE INITIALIZE ALLOC NULL_KEYWORD FREE
+%token <no> ID STR INT NUM STRING READ WRITE INITIALIZE ALLOC NULL_KEYWORD FREE SELF
 %token <no> IF ENDIF ELSE THEN  
 %token <no> CLASS ENDCLASS EXTENDS
 %token <no> REPEAT UNTIL WHILE DO ENDWHILE BREAK CONTINUE
@@ -57,33 +58,31 @@
 /* Program Root section */
 Program : TypeDefBlock ClassDefBlock GDeclBlock FDefBlock MainBlock {          
         $$ = createTree(NULL, NULL, "void", rootNode,  alloc_5($1, $2, $3, $4, $5) , 5 , NULL, NULL); 
-        printTypeTable();
         printTree($$, NULL, 0);
-
-        initialize();
-        struct Context * c = (struct Context *)malloc(sizeof(struct Context));
-        c->jumpLabels = (int *)malloc(sizeof(int)*2);
-        c->mainFunc = 0;
-        codeGen($4, c);
-        c->mainFunc = 1;
-        codeGen($5, c);
+        printTypeTable();
+        // initialize();
+        // struct Context * c = (struct Context *)malloc(sizeof(struct Context));
+        // c->jumpLabels = (int *)malloc(sizeof(int)*2);
+        // c->mainFunc = 0;
+        // codeGen($4, c);
+        // c->mainFunc = 1;
+        // codeGen($5, c);
     }
     | TypeDefBlock ClassDefBlock GDeclBlock MainBlock {
         $$ = createTree(NULL, NULL, "void", rootNode,  alloc_4($1, $2, $3, $4) , 4 , NULL, NULL); 
-        printTypeTable();
         printTree($$, NULL, 0);
-        
-        initialize();
-        struct Context * c = (struct Context *)malloc(sizeof(struct Context));
-        c->jumpLabels = (int *)malloc(sizeof(int)*2);
-        c->mainFunc = 1;
-        codeGen($4, c);
+        printTypeTable();
+        // initialize();
+        // struct Context * c = (struct Context *)malloc(sizeof(struct Context));
+        // c->jumpLabels = (int *)malloc(sizeof(int)*2);
+        // c->mainFunc = 1;
+        // codeGen($4, c);
     }
 ;
 
 /* Type Definitions */
-TypeDefBlock : TYPE TypeDefList ENDTYPE { $$ = $2; }
-    | { $$ = NULL; }
+TypeDefBlock : TYPE TypeDefList ENDTYPE { $$ = $2;  }
+    | { $$ = NULL; printTypeTable(); }
 ;
 TypeDefList : TypeDefList TypeDef {
         $$ = createTree(NULL, NULL, "void", connectorNode,  alloc_2($1, $2) , 2 , NULL, NULL);
@@ -95,7 +94,7 @@ TypeDef : NewTypeID '{' FieldDeclList '}' {
         setUserDefType($$);
     }
 ;
-NewTypeID: ID { TInstall($1->name, 1, NULL, USER_DEF); $$ = $1; }
+NewTypeID: ID { TInstall($1->name, 1, NULL, USER_DEF, NULL); $$ = $1; }
 ;
 FieldDeclList : FieldDeclList FieldDecl {
         $$ = createTree(NULL, NULL, "void", connectorNode,  alloc_2($1, $2) , 2 , NULL, NULL);
@@ -108,7 +107,7 @@ FieldDecl : Type ID ';' {
 ;
 
 /* Class Declarations */
-ClassDefBlock : CLASS ClassDefList ENDCLASS { $$ = $2; }
+ClassDefBlock : CLASS ClassDefList ENDCLASS { $$ = $2; printClassTable(); }
     | { $$ = NULL; }
 ;
 ClassDefList : ClassDefList ClassDef {
@@ -118,10 +117,15 @@ ClassDefList : ClassDefList ClassDef {
 ;
 ClassDef : Cname '{' DECL FieldDeclList MethodDecl ENDDECL MethodDefns '}' {
         $$ = createTree(NULL, NULL, "void", classDefNode,  alloc_4($1, $4, $5, $7) , 4 , NULL, NULL);
+
     }
 ;
-Cname : ID { $$ = $1; }
-    | ID EXTENDS ID { $$ = NULL; }
+Cname : ID { 
+        $$ = createTree(NULL, NULL, "void", CNameNode,  alloc_2($1, NULL) , 2, NULL, NULL); 
+    }
+    | ID EXTENDS ID { 
+        $$ = createTree(NULL, NULL, "void", CNameNode,  alloc_2($1, $3) , 2, NULL, NULL);
+    }
 ;
 MethodDecl : MethodDecl MDecl { 
         $$ = createTree(NULL, NULL, "void", connectorNode,  alloc_2($1, $2) , 2 , NULL, NULL); 
@@ -344,8 +348,10 @@ identifier : ID  { $$ = $1; }
     | identifier '.' ID {
         $$ = createTree(NULL, NULL, "void", memberNode,  alloc_2($1, $3), 2 , NULL, NULL);
     }
+    | SELF {
+        $$ = createTree(NULL, NULL, "void", selfNode,  NULL, 0, NULL, NULL);
+    }
 ;
-
 
 InputStmt : READ '(' identifier ')' ';' {
         $$ = createTree(NULL, NULL, "void", readNode, alloc_1($3), 1, NULL, NULL);
@@ -486,6 +492,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     symbolTable = NULL;
+    classTable = NULL;
     SP = 4096;
     globalFlabel = 0;
     TypeTableCreate();
