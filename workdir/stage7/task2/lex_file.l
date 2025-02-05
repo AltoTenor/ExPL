@@ -14,7 +14,8 @@ digit [0-9]
 
 
 %%
-(breakpoint)        {  yylval.no = createTree(NULL, NULL, NULL, brkpNode,  NULL , 0 , NULL, NULL);return BRKP; }
+(breakpoint)        {   yylval.no = createTree(NULL, NULL, NULL, brkpNode,  NULL , 0 , NULL, NULL);
+                        return BRKP; }
 
 (begin)             {   return START; }
 (end)               {   return END; }
@@ -38,7 +39,8 @@ digit [0-9]
 (new)               {   return NEW; }
 (delete)            {   return DELETE; }
 
-(main)              {   yylval.no = createTree("main", NULL, NULL, idNode,  NULL , 0 , NULL, NULL); return MAIN; }
+(main)              {   yylval.no = createTree("main", NULL, NULL, idNode,  NULL , 0 , NULL, NULL); 
+                        return MAIN; }
 (return)            {   return RETURN; }
 
 (read)              {   return READ; }
@@ -57,8 +59,10 @@ digit [0-9]
 (repeat)            {   return REPEAT; }
 (until)             {   return UNTIL; }
 
-(break)             {   yylval.no = createTree(NULL, NULL, NULL, breakNode,  NULL , 0 , NULL, NULL); return BREAK; }
-(continue)          {   yylval.no = createTree(NULL, NULL, NULL, contNode,  NULL , 0 , NULL, NULL); return CONTINUE; }
+(break)             {   yylval.no = createTree(NULL, NULL, NULL, breakNode,  NULL , 0 , NULL, NULL); 
+                        return BREAK; }
+(continue)          {   yylval.no = createTree(NULL, NULL, NULL, contNode,  NULL , 0 , NULL, NULL); 
+                        return CONTINUE; }
                 
 (!=)                {   return NE; }
 (==)                {   return EQ; }

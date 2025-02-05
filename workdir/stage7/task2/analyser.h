@@ -297,3 +297,6 @@ char * printNode( struct tnode* t );
 void printX(char * s, int X, int val, int type);
 char * printType( struct Typetable* t );
 char * printClass( struct Classtable* t );
+
+// Codegen Function
+void compile(struct tnode * t);

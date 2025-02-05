@@ -761,7 +761,7 @@ void assignVarTypes(struct tnode* t,
                                 t->Ctype = classEntry;
                                 break;
                             }
-                            /* To handle - self.obj.func()
+                            /* To handle - self.obj.func() and obj.func()
                                 Checks if self.obj is of type CLASS or not. If yes change Ctype of
                                 node and also check if function exists */
                             if  ( t->children[0]->type->generalType == CLASS_TYPE ){
@@ -804,6 +804,13 @@ void assignVarTypes(struct tnode* t,
                             t->type = t->children[0]->type;
                             break;
                         }
+        
+        case deleteNode:{   if ( t->children[0]->type->Ctype == NULL ){
+                                printf("Cannot delete variable: %s\n", t->children[0]->name);
+                                exit(1);
+                            }
+                            break;
+        }
     } 
 }
 
@@ -1109,12 +1116,15 @@ void checkMDef(struct tnode* t, struct Classtable* CTEntry){
             t->Lentry = addParamListToLsymbolTable(method->paramlist, t->children[3]->Lentry);
         }
         else t->Lentry = t->children[3]->Lentry;
+        LInstall("self", TLookup(CTEntry->className), t);
 
-        addMemberstoLST(t, CTEntry);
         addBindingAddr(t->Lentry);
 
         // Make LST accessible to all Body and skip the Local Declarations
         assignVarTypes(t->children[3]->children[1], t->Lentry, t->children[0]->type, CTEntry);
+        // Adding class entry to MDefNode
+        t->Ctype = CTEntry;
+
         printf("LST for Class: %s \nFunction: %s\n",CTEntry->className, t->children[1]->name);
         printLSymbolTable(t->Lentry);
     }
@@ -1128,14 +1138,14 @@ int checkDescendant(struct Classtable * parent, struct Classtable * child ){
     return 0;
 }
 
-void addMemberstoLST(struct tnode* t, struct Classtable* CTEntry){
-    struct Fieldlist * f = CTEntry->memberField;
-    while(f){
-        LInstall(f->name, f->type, t);
-        f = f->next;
-    }
-    return;
-}
+// void addMemberstoLST(struct tnode* t, struct Classtable* CTEntry){
+//     struct Fieldlist * f = CTEntry->memberField;
+//     while(f){
+//         LInstall(f->name, f->type, t);
+//         f = f->next;
+//     }
+//     return;
+// }
 
 void printClassTable(){
     struct Classtable* temp = classTable;
@@ -1283,5 +1293,8 @@ void printX(char * s, int X, int val, int type){
     for (int i=0;i<X-n-2;i++) printf(" ");
 }
 
-// -------------------------------------------------------------------------------------------------
+// -------------------------------CODEGENS----------------------------------------------------------
 
+void compile(struct tnode * t){
+
+}

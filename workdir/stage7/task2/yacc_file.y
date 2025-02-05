@@ -60,23 +60,26 @@ Program : TypeDefBlock ClassDefBlock GDeclBlock FDefBlock MainBlock {
         $$ = createTree(NULL, NULL, "void", rootNode,  alloc_5($1, $2, $3, $4, $5) , 5 , NULL, NULL); 
         printTree($$, NULL, 0);
         printTypeTable();
-        // initialize();
-        // struct Context * c = (struct Context *)malloc(sizeof(struct Context));
-        // c->jumpLabels = (int *)malloc(sizeof(int)*2);
-        // c->mainFunc = 0;
-        // codeGen($4, c);
-        // c->mainFunc = 1;
-        // codeGen($5, c);
+        initialize();
+        struct Context * c = (struct Context *)malloc(sizeof(struct Context));
+        c->jumpLabels = (int *)malloc(sizeof(int)*2);
+        c->mainFunc = 0;
+        codeGen($2, c);
+        codeGen($4, c);
+        c->mainFunc = 1;
+        codeGen($5, c);
     }
     | TypeDefBlock ClassDefBlock GDeclBlock MainBlock {
         $$ = createTree(NULL, NULL, "void", rootNode,  alloc_4($1, $2, $3, $4) , 4 , NULL, NULL); 
         printTree($$, NULL, 0);
         printTypeTable();
-        // initialize();
-        // struct Context * c = (struct Context *)malloc(sizeof(struct Context));
-        // c->jumpLabels = (int *)malloc(sizeof(int)*2);
-        // c->mainFunc = 1;
-        // codeGen($4, c);
+        initialize();
+        struct Context * c = (struct Context *)malloc(sizeof(struct Context));
+        c->jumpLabels = (int *)malloc(sizeof(int)*2);
+        c->mainFunc = 0;
+        codeGen($2, c);
+        c->mainFunc = 1;
+        codeGen($4, c);        
     }
 ;
 
@@ -107,7 +110,14 @@ FieldDecl : Type ID ';' {
 ;
 
 /* Class Declarations */
-ClassDefBlock : CLASS ClassDefList ENDCLASS { $$ = $2; printClassTable(); }
+ClassDefBlock : CLASS ClassDefList ENDCLASS { 
+        $$ = $2; 
+        struct Classtable * t = classTable;
+        int cnt = 0;
+        while(t){ t->classIndex = cnt++; t=t->next;}
+        SP += (8*cnt);
+        printClassTable();
+    }
     | { $$ = NULL; }
 ;
 ClassDefList : ClassDefList ClassDef {

@@ -172,6 +172,72 @@ int codeGen( struct tnode *t , struct Context * c) {
                         i = codeGen(t->children[x], c);
                     break;
                 }
+
+                case classDefNode: {
+                    i = codeGen(t->children[3], c);
+                    printf("Generating code for class: %s\n", t->Ctype->className);
+                    // Fix order of operations
+                    break;
+                }
+                /* TODO
+                1. Using ClassDefNode declarations and init self 
+                   add codeGen for VFuncTable / Order of operations / Tree Wise
+                   Handling SP / Writing label translation for this area only
+                   MOV [addr], F0 ?
+                   Seperate it out into files
+                2. Handle calls to new and delete
+                   Just allocate similar to alloc 
+                   and find right VfuncPtr to point to 
+                3. Handle self access and object access all cases
+                   Member access handling 
+                 */
+                case MDefNode: {
+                    struct MemberFunclist * method 
+                        = MethodLookup(t->children[1]->name, t->Ctype);
+                    fprintf(fp, "F%d:\n", method->flabel);
+                    fprintf(fp, "PUSH BP\n");
+                    fprintf(fp, "MOV BP, SP\n");
+                    
+                    // Arguments getting pushed in 
+                    struct Lsymbol * l = t->Lentry;
+                    int paramnum = 0;
+                    int inc = 0;
+                    i = getReg();
+                    while ( l ){
+                        if ( findParam(method->paramlist, l->name) ){
+                            paramnum++;
+                            fprintf(fp, "MOV R%d, BP\n", i);
+                            fprintf(fp, "SUB R%d, %d\n", i, paramnum+2);
+                            fprintf(fp, "MOV R%d, [R%d]\n", i, i);
+                        }
+                        if ( l->type->generalType == USER_DEF ){
+                            fprintf(fp, "PUSH R%d\n", i);
+                            inc++;
+                        }
+                        else{
+                            for (int x=0;x<l->type->size;x++){ 
+                                fprintf(fp, "PUSH R%d\n", i);
+                                inc++;
+                            }
+                        }
+                        l = l->next;
+                    }
+                    freeReg();
+
+                    // Function Body Code Generated
+                    c->mainFunc = 0;
+                    c->localvars = inc;
+                    codeGen(t->children[3], c);
+
+                    // In case of no return statement
+                    // Pop out the local variables from the stack
+                    for (int x=0; x<c->localvars; x++) fprintf(fp, "POP R0\n");
+
+                    // set BP to the old value of BP in the stack
+                    fprintf(fp, "POP BP\n");
+                    fprintf(fp, "RET\n");
+                    break;
+                }
                 
                 case FDefNode: {
                     if ( strcmp(t->children[1]->name, "main") == 0 ){
@@ -553,7 +619,6 @@ int codeGen( struct tnode *t , struct Context * c) {
                     fprintf(fp, "MOV R%d, -1\n", i);
                     break;
                 }
-
 
                 case initNode: {
                     for (int x = 0; x < register_index; x ++ ){
