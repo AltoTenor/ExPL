@@ -1,34 +1,49 @@
-type
-    list {
-        int data;
-        list next;
-    }
-endtype
-
-class 
-LL {
+class fact {
     decl
-        int a;
-        int f(int b, int c, int d);
+        int x;
+        int findfactorial(int n);
     enddecl
-    int f(int b, int c, int d){
+
+    int findfactorial(int n) {
+        decl
+            int p;
+        enddecl
         begin
-            write(2);
+            if (n <= 1) then
+                p = 1;
+            else
+                p = n * self.findfactorial(n - 1);
+            endif;
+            return p;
         end
     }
 }
 endclass
 
 decl
-    LL obj;
-    list a;
-    int x;
+    int f(fact obj);
 enddecl
 
-int main() {
+int f(fact obj){
+    decl
+        int n;
+    enddecl
     begin
-        obj = new(LL);
-        x = delete(obj);
+        read(n);
+        write("Fact !");
+        write(obj.findfactorial(n));
+    end
+}
+
+int main() {
+    decl
+        int x, n;
+        fact obj;
+    enddecl
+    begin
+        x = initialize();
+        obj = new(fact);
+        x = f(obj);
         return 1;
     end
 }

@@ -54,6 +54,7 @@ int main() {
         x = initialize();
         obj = new(testfactsum);
         read(n);
+        write("Sum of facts:");
         write(obj.testfun(n));
         return 1;
     end

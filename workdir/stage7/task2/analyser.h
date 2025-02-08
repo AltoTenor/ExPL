@@ -285,11 +285,8 @@ struct MemberFunclist * MethodLookup(char * name, struct Classtable* CT);
 struct Fieldlist * MemberLookup(char * name, struct Classtable* CT);
 // Checking if second class is descendant of first
 int checkDescendant(struct Classtable * parent, struct Classtable * child );
-// Adding Class Members to LST
-void addMemberstoLST(struct tnode* t, struct Classtable* CTEntry);
 // Helper Function to print the class table
 void printClassTable();
-
 /* ---------------------------------------------------------------------------------------------- */
 /* Printing Tree Nodes */
 void printTree(struct tnode* t, struct tnode* p, int depth);

@@ -108,11 +108,11 @@ int main(){
     yylex();
 
     // Print Labels and their addresses
-    // printf("\nLabel Translator: \n");
-    // while (t){
-    //     printf("%s %d\n", t->label, t->addr);
-    //     t = t->next;
-    // }
+    printf("\nLabel Translator: \n");
+    while (t){
+        printf("%s %d\n", t->label, t->addr);
+        t = t->next;
+    }
     printf("Label Translator: Changed labels to addresses!\n");
     return 0;
 }

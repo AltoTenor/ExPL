@@ -181,7 +181,7 @@ int codeGen( struct tnode *t , struct Context * c) {
                         struct Lsymbol * l = t->Lentry;
                         int inc = 0;
                         while ( l ){ 
-                            if (t->type->generalType == TYPE_TUPLE) inc += l->type->size; 
+                            if (l->type->generalType == TYPE_TUPLE) inc += l->type->size; 
                             else inc++;
                             l = l->next; 
                         }

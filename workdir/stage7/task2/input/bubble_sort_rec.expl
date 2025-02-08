@@ -32,6 +32,7 @@ int main()
   enddecl
 
   begin
+    write("Input N");
     read(n);
 
     i=0;
@@ -42,6 +43,7 @@ int main()
 
     r = BubbleSort(0,n-1);
 
+    write("Sorted Arr:");
     i=0;
     while(i<n) do
       write(arr[i]);

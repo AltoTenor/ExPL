@@ -22,6 +22,7 @@
     extern FILE *yyin;
     extern FILE *fp;
     extern int SP;
+    extern int classIndex;
     extern int globalFlabel;
     extern struct Gsymbol * symbolTable;
     extern struct Classtable * classTable;
@@ -112,10 +113,6 @@ FieldDecl : Type ID ';' {
 /* Class Declarations */
 ClassDefBlock : CLASS ClassDefList ENDCLASS { 
         $$ = $2; 
-        struct Classtable * t = classTable;
-        int cnt = 0;
-        while(t){ t->classIndex = cnt++; t=t->next;}
-        SP += (8*cnt);
         printClassTable();
     }
     | { $$ = NULL; }
@@ -127,7 +124,11 @@ ClassDefList : ClassDefList ClassDef {
 ;
 ClassDef : Cname '{' DECL FieldDeclList MethodDecl ENDDECL MethodDefns '}' {
         $$ = createTree(NULL, NULL, "void", classDefNode,  alloc_4($1, $4, $5, $7) , 4 , NULL, NULL);
-
+    }
+    |  Cname '{' DECL FieldDeclList ENDDECL MethodDefns '}' {
+        printf("Missing Function Declaration.\n");
+        printf("If no functions are declared, recommended to use User Defined types\n");
+        exit(1);
     }
 ;
 Cname : ID { 
@@ -507,6 +508,7 @@ int main(int argc, char **argv) {
     classTable = NULL;
     SP = 4096;
     globalFlabel = 0;
+    classIndex = 0;
     TypeTableCreate();
     yyparse();
 

@@ -9,6 +9,7 @@ FILE *fp;
 
 int register_index = 0;
 int label_index = 0;
+extern struct Classtable * classTable;
 extern int SP;
 
 /* Getting a free register if available */
@@ -28,6 +29,21 @@ void initialize(){
     fp = fopen("temp.xsm", "w");
     fprintf(fp, "0\n2056\n0\n0\n0\n0\n0\n0\n");
 
+    // Setting up VFuncTable
+    struct Classtable * CEntry = classTable;
+    while( CEntry ){
+        int index = 0;
+        struct MemberFunclist * method = CEntry->vFuncptr;
+        int classBase = 4096 + CEntry->classIndex*8;
+        while(method){
+            fprintf(fp, "MOV [%d], F%d\n", classBase+(index++), method->flabel);
+            method = method -> next;
+        }
+        // Unused entries
+        while(index<8){ fprintf(fp, "MOV [%d], -1\n", classBase+(index++)); }
+        CEntry = CEntry->next;
+    }
+
     // Jmp to Main Label
     fprintf(fp, "MOV SP, %d\n", SP);
     fprintf(fp, "CALL MAIN\n");
@@ -37,10 +53,12 @@ void initialize(){
     fprintf(fp,"EXIT:\n");
     fprintf(fp,"MOV     R1,\"Exit\"\n");
     fprintf(fp,"PUSH    R1\n");
-    fprintf(fp,"PUSH    R1\n");
-    fprintf(fp,"PUSH    R1\n");
-    fprintf(fp,"PUSH    R1\n");
-    fprintf(fp,"PUSH    R1\n");
+    fprintf(fp,"ADD     SP, 4\n");
+
+    // fprintf(fp,"PUSH    R1\n");
+    // fprintf(fp,"PUSH    R1\n");
+    // fprintf(fp,"PUSH    R1\n");
+    // fprintf(fp,"PUSH    R1\n");
     fprintf(fp,"CALL    0\n");
 
     // Read System Call 
@@ -57,11 +75,14 @@ void initialize(){
     fprintf(fp,"PUSH    R1\n");
     fprintf(fp,"PUSH    R1\n");
     fprintf(fp,"CALL    0\n");
-    fprintf(fp,"POP     R0\n");
-    fprintf(fp,"POP     R1\n");
-    fprintf(fp,"POP     R1\n");
-    fprintf(fp,"POP     R1\n");
-    fprintf(fp,"POP     R1\n");
+    // Same poping Registers
+    fprintf(fp,"SUB     SP, 5\n");
+    
+    // fprintf(fp,"POP     R0\n");
+    // fprintf(fp,"POP     R1\n");
+    // fprintf(fp,"POP     R1\n");
+    // fprintf(fp,"POP     R1\n");
+    // fprintf(fp,"POP     R1\n");
 
     fprintf(fp,"POP     R1\n");
     fprintf(fp,"POP     R0\n");
@@ -81,11 +102,13 @@ void initialize(){
     fprintf(fp,"PUSH    R1\n");
     fprintf(fp,"PUSH    R1\n");
     fprintf(fp,"CALL    0\n");
-    fprintf(fp,"POP     R0\n");
-    fprintf(fp,"POP     R1\n");
-    fprintf(fp,"POP     R1\n");
-    fprintf(fp,"POP     R1\n");
-    fprintf(fp,"POP     R1\n");
+    fprintf(fp,"SUB     SP, 5\n");
+    
+    // fprintf(fp,"POP     R0\n");
+    // fprintf(fp,"POP     R1\n");
+    // fprintf(fp,"POP     R1\n");
+    // fprintf(fp,"POP     R1\n");
+    // fprintf(fp,"POP     R1\n");
 
     fprintf(fp,"POP     R1\n");
     fprintf(fp,"POP     R0\n");
@@ -101,12 +124,13 @@ void initialize(){
     fprintf(fp,"PUSH    R1\n");
     fprintf(fp,"PUSH    R1\n");
     fprintf(fp,"CALL    0\n");
-    fprintf(fp,"POP     R0\n");
-    fprintf(fp,"POP     R1\n");
-    fprintf(fp,"POP     R1\n");
-    fprintf(fp,"POP     R1\n");
-    fprintf(fp,"POP     R1\n");
-
+    fprintf(fp,"SUB     SP, 5\n");
+    
+    // fprintf(fp,"POP     R0\n");
+    // fprintf(fp,"POP     R1\n");
+    // fprintf(fp,"POP     R1\n");
+    // fprintf(fp,"POP     R1\n");
+    // fprintf(fp,"POP     R1\n");
     fprintf(fp,"RET\n");
 
     // Alloc Call
@@ -121,10 +145,12 @@ void initialize(){
     fprintf(fp,"PUSH    R1\n");
     fprintf(fp,"CALL    0\n");
     fprintf(fp,"POP     R0\n");
-    fprintf(fp,"POP     R1\n");
-    fprintf(fp,"POP     R1\n");
-    fprintf(fp,"POP     R1\n");
-    fprintf(fp,"POP     R1\n");
+    fprintf(fp,"SUB     SP, 4\n");
+    // fprintf(fp,"POP     R1\n");
+    // fprintf(fp,"POP     R1\n");
+    // fprintf(fp,"POP     R1\n");
+    // fprintf(fp,"POP     R1\n");
+    
 
     fprintf(fp,"RET\n");
 
@@ -139,11 +165,13 @@ void initialize(){
     fprintf(fp,"PUSH    R1\n");
     fprintf(fp,"PUSH    R1\n");
     fprintf(fp,"CALL    0\n");
-    fprintf(fp,"POP     R0\n");
-    fprintf(fp,"POP     R1\n");
-    fprintf(fp,"POP     R1\n");
-    fprintf(fp,"POP     R1\n");
-    fprintf(fp,"POP     R1\n");
+    fprintf(fp,"SUB     SP, 5\n");
+    
+    // fprintf(fp,"POP     R0\n");
+    // fprintf(fp,"POP     R1\n");
+    // fprintf(fp,"POP     R1\n");
+    // fprintf(fp,"POP     R1\n");
+    // fprintf(fp,"POP     R1\n");
 
     fprintf(fp,"RET\n");
 
@@ -156,6 +184,10 @@ int findParam(struct Paramstruct * p, char * name){
     }
     return 0;
 }
+
+/* TODO
+2. Handle calls to delete
+*/
 
 /* Code Generation to XSM */
 int codeGen( struct tnode *t , struct Context * c) {
@@ -175,22 +207,11 @@ int codeGen( struct tnode *t , struct Context * c) {
 
                 case classDefNode: {
                     i = codeGen(t->children[3], c);
-                    printf("Generating code for class: %s\n", t->Ctype->className);
+                    // printf("Generating code for class: %s\n", t->Ctype->className);
                     // Fix order of operations
                     break;
                 }
-                /* TODO
-                1. Using ClassDefNode declarations and init self 
-                   add codeGen for VFuncTable / Order of operations / Tree Wise
-                   Handling SP / Writing label translation for this area only
-                   MOV [addr], F0 ?
-                   Seperate it out into files
-                2. Handle calls to new and delete
-                   Just allocate similar to alloc 
-                   and find right VfuncPtr to point to 
-                3. Handle self access and object access all cases
-                   Member access handling 
-                 */
+                
                 case MDefNode: {
                     struct MemberFunclist * method 
                         = MethodLookup(t->children[1]->name, t->Ctype);
@@ -204,17 +225,36 @@ int codeGen( struct tnode *t , struct Context * c) {
                     int inc = 0;
                     i = getReg();
                     while ( l ){
-                        if ( findParam(method->paramlist, l->name) ){
+                        // printf("%s\n", l->name);
+                        if ( findParam(method->paramlist, l->name)
+                            && l->type->generalType != CLASS_TYPE ){
                             paramnum++;
                             fprintf(fp, "MOV R%d, BP\n", i);
                             fprintf(fp, "SUB R%d, %d\n", i, paramnum+2);
                             fprintf(fp, "MOV R%d, [R%d]\n", i, i);
                         }
+
                         if ( l->type->generalType == USER_DEF ){
                             fprintf(fp, "PUSH R%d\n", i);
                             inc++;
                         }
+                        else if ( l->type->generalType == CLASS_TYPE ){
+                            paramnum+=2;
+                            // Pushing Member Field Pointer
+                            fprintf(fp, "MOV R%d, BP\n", i);
+                            fprintf(fp, "SUB R%d, %d\n", i, paramnum+2);
+                            fprintf(fp, "MOV R%d, [R%d]\n", i, i);
+                            fprintf(fp, "PUSH R%d\n", i);
+                            // Pushing VFuncPtr
+                            fprintf(fp, "MOV R%d, BP\n", i);
+                            fprintf(fp, "SUB R%d, %d\n", i, paramnum+1);
+                            fprintf(fp, "MOV R%d, [R%d]\n", i, i);
+                            fprintf(fp, "PUSH R%d\n", i);
+                            inc+=2;
+                        }
                         else{
+                            // fprintf(fp, "ADD SP, %d\n", l->type->size);
+                            // inc += l->type->size;
                             for (int x=0;x<l->type->size;x++){ 
                                 fprintf(fp, "PUSH R%d\n", i);
                                 inc++;
@@ -231,6 +271,8 @@ int codeGen( struct tnode *t , struct Context * c) {
 
                     // In case of no return statement
                     // Pop out the local variables from the stack
+                  
+                    /* OPTIONAL CODE TO ALLOW VOID RETURNS */
                     for (int x=0; x<c->localvars; x++) fprintf(fp, "POP R0\n");
 
                     // set BP to the old value of BP in the stack
@@ -247,7 +289,8 @@ int codeGen( struct tnode *t , struct Context * c) {
                         struct Lsymbol * l = t->Lentry;
                         int inc = 0;
                         while ( l ){ 
-                            if (t->type->generalType == TYPE_TUPLE) inc += l->type->size; 
+                            if (l->type->generalType == TYPE_TUPLE) inc += l->type->size; 
+                            else if (l->type->generalType == CLASS_TYPE) inc += l->type->size; 
                             else inc++;
                             l = l->next; 
                         }
@@ -257,7 +300,8 @@ int codeGen( struct tnode *t , struct Context * c) {
                         c->localvars = inc;
                         codeGen(t->children[3], c);
 
-                        for (int x=0;x<c->localvars;x++) fprintf(fp, "POP R0\n");
+                        fprintf(fp, "SUB SP, %d\n", c->localvars);
+                        // for (int x=0;x<c->localvars;x++) fprintf(fp, "POP R0\n");
 
                         fprintf(fp, "RET\n");
                     }
@@ -272,7 +316,8 @@ int codeGen( struct tnode *t , struct Context * c) {
                         int inc = 0;
                         i = getReg();
                         while ( l ){
-                            if ( findParam(t->Gentry->paramlist, l->name) ){
+                            if ( findParam(t->Gentry->paramlist, l->name) 
+                                && l->type->generalType != CLASS_TYPE){
                                 paramnum++;
                                 fprintf(fp, "MOV R%d, BP\n", i);
                                 fprintf(fp, "SUB R%d, %d\n", i, paramnum+2);
@@ -281,6 +326,20 @@ int codeGen( struct tnode *t , struct Context * c) {
                             if ( l->type->generalType == USER_DEF ){
                                 fprintf(fp, "PUSH R%d\n", i);
                                 inc++;
+                            }
+                            else if ( l->type->generalType == CLASS_TYPE ){
+                                paramnum+=2;
+                                // Pushing Member Field Pointer
+                                fprintf(fp, "MOV R%d, BP\n", i);
+                                fprintf(fp, "SUB R%d, %d\n", i, paramnum+2);
+                                fprintf(fp, "MOV R%d, [R%d]\n", i, i);
+                                fprintf(fp, "PUSH R%d\n", i);
+                                // Pushing VFuncPtr
+                                fprintf(fp, "MOV R%d, BP\n", i);
+                                fprintf(fp, "SUB R%d, %d\n", i, paramnum+1);
+                                fprintf(fp, "MOV R%d, [R%d]\n", i, i);
+                                fprintf(fp, "PUSH R%d\n", i);
+                                inc+=2;
                             }
                             else{
                                 for (int x=0;x<l->type->size;x++){ 
@@ -299,7 +358,8 @@ int codeGen( struct tnode *t , struct Context * c) {
 
                         // In case of no return statement
                         // Pop out the local variables from the stack
-                        for (int x=0; x<c->localvars; x++) fprintf(fp, "POP R0\n");
+                        fprintf(fp, "SUB SP, %d\n", c->localvars);
+                        // ALT - for (int x=0; x<c->localvars; x++) fprintf(fp, "POP R0\n");
 
                         // set BP to the old value of BP in the stack
                         fprintf(fp, "POP BP\n");
@@ -321,9 +381,10 @@ int codeGen( struct tnode *t , struct Context * c) {
 
                 // Assignment Operator ( evaluates RHS expression and frees that register )
                 case assignNode:{
-                    struct Fieldlist * f = t->children[0]->type->fields;
                     i = codeGen(t->children[0], c);
+                    // printf("type: %d\n", t->children[0]->type->generalType);
                     if ( t->children[0]->type->generalType == TYPE_TUPLE ){
+                        struct Fieldlist * f = t->children[0]->type->fields;
                         j = codeGen(t->children[1]->children[0], c);
                         k = getReg();
                         while (f){
@@ -334,6 +395,27 @@ int codeGen( struct tnode *t , struct Context * c) {
                             f = f->next;
                         }
                         freeReg();
+                    }
+                    else if ( t->children[1]->nodetype == newNode ){
+                        // Allocating space for Members and storing in Rj
+                        for (int x = 0; x < register_index; x ++ ){
+                            fprintf(fp, "PUSH R%d\n", x);
+                        }
+                        fprintf(fp, "CALL ALLOC\n");
+                        j = getReg();
+                        fprintf(fp, "MOV R%d, R0\n", j);
+
+                        // Restoring Register Context
+                        for (int x = register_index-2; x >= 0; x -- ){
+                            fprintf(fp, "POP R%d\n", x);
+                        }
+                        // Move Heap address to first field
+                        fprintf(fp, "MOV [R%d], R%d\n", i, j);
+                        // Move VFuncPtr to second field
+                        int ci = 4096 + t->children[1]->Ctype->classIndex*8;
+                        fprintf(fp, "ADD R%d, 1\n", i);
+                        fprintf(fp, "MOV [R%d], %d\n", i, ci);
+
                     }
                     else{
                         j = codeGen(t->children[1], c);
@@ -466,6 +548,7 @@ int codeGen( struct tnode *t , struct Context * c) {
                     break;
                 }
 
+                case selfNode:
                 case idNode :{       
                     i = getReg();
                     if ( t->Lentry != NULL ){
@@ -511,45 +594,125 @@ int codeGen( struct tnode *t , struct Context * c) {
                 }
             
                 case funcCallNode:{
-                    // Pushing Registers in Use into Stack
-                    t->value.intval = register_index;
-                    for (int reg=0;reg<t->value.intval;reg++){
-                        fprintf(fp, "PUSH R%d\n", reg);
-                    }
-                    // If arglist is present Call CodeGen again to push Args
-                    if ( t->children[1] ) codeGen(t->children[1], c);
-                    
-                    // Empty space for Ret Val
-                    fprintf(fp, "PUSH R0\n");
-                    
-                    // Function Call 
-                    register_index=0;
-                    fprintf(fp, "CALL F%d\n", t->children[0]->Gentry->flabel);
-                    register_index = t->value.intval;
-                    
-                    // Storing Retval
-                    i = getReg();
-                    fprintf(fp, "POP R%d\n", i);
-                    
-                    // Calculate number of args to pop
-                    struct Paramstruct * g = t->children[0]->Gentry->paramlist;
-                    while (g){
-                        fprintf(fp, "POP R19\n");
-                        g = g->next;
-                    }
 
-                    // Restore Register Context
-                    for (int x=t->value.intval-1; x >=0 ; x -- ) fprintf(fp, "POP R%d\n", x);
+                    if ( t->children[0]->Ctype){
+                        // Pushing Registers in Use into Stack
+                        t->value.intval = register_index;
+                        for (int reg=0;reg<t->value.intval;reg++){
+                            fprintf(fp, "PUSH R%d\n", reg);
+                        }
+                        
+                        // Pushing in the heap location of the object and VFuncPtr of the object
+                        i = codeGen(t->children[0], c);
+                        j = getReg();
+                        fprintf(fp, "MOV R%d, [R%d]\n",j, i);
+                        fprintf(fp, "PUSH R%d\n", j);
+                        fprintf(fp, "ADD R%d, 1\n", i);
+                        fprintf(fp, "MOV R%d, [R%d]\n",j, i);
+                        fprintf(fp, "PUSH R%d\n", j);
 
+                        // Finding out to which addr the call has to be made from the VFuncTable
+                        struct MemberFunclist * method
+                            = MethodLookup(t->children[0]->children[1]->name, t->children[0]->Ctype);
+                        fprintf(fp, "ADD R%d, %d\n", j, method->funcposition);
+                        
+                        // If arglist is present Call CodeGen again to push Args
+                        if ( t->children[1] ) codeGen(t->children[1], c);
+                        
+                        // Empty space for Ret Val
+                        fprintf(fp, "PUSH R0\n");
+                        
+                        // Function Call 
+                        register_index=0;
+                        fprintf(fp, "MOV R%d, [R%d]\n",j, j);
+                        fprintf(fp, "CALL R%d\n", j);
+
+                        // Reset register to start (essentially deleting new regs)
+                        register_index = t->value.intval;
+                        
+                        // Storing Retval
+                        i = getReg();
+                        fprintf(fp, "POP R%d\n", i);
+                        
+                        // Calculate number of args to pop
+                        struct Paramstruct * g = method->paramlist;
+                        while (g){
+                            fprintf(fp, "POP R19\n");
+                            g = g->next;
+                        }
+
+                        // Popping the object member and VFunctPtr 
+                        fprintf(fp, "SUB SP, 2\n");
+                        // ALT - fprintf(fp, "POP R19\n");
+                        // ALT - fprintf(fp, "POP R19\n");
+
+                        // Restore Register Context
+                        for (int x=t->value.intval-1; x >=0 ; x -- ) fprintf(fp, "POP R%d\n", x);
+                    }
+                    else{
+                        // Pushing Registers in Use into Stack
+                        t->value.intval = register_index;
+                        for (int reg=0;reg<t->value.intval;reg++){
+                            fprintf(fp, "PUSH R%d\n", reg);
+                        }
+                        // If arglist is present Call CodeGen again to push Args
+                        if ( t->children[1] ) codeGen(t->children[1], c);
+                        
+                        // Empty space for Ret Val
+                        fprintf(fp, "PUSH R0\n");
+                        
+                        // Function Call 
+                        register_index=0;
+                        fprintf(fp, "CALL F%d\n", t->children[0]->Gentry->flabel);
+                        register_index = t->value.intval;
+                        
+                        // Storing Retval
+                        i = getReg();
+                        fprintf(fp, "POP R%d\n", i);
+                        
+                        // Calculate number of args to pop
+                        int argCnt = 0;
+                        struct Paramstruct * g = t->children[0]->Gentry->paramlist;
+                        while (g){
+                            // ALT - fprintf(fp, "POP R19\n");
+                            if (g->type->generalType == CLASS_TYPE) argCnt+= g->type->size;
+                            else argCnt++;
+                            g = g->next;
+                        }
+                        fprintf(fp, "SUB SP, %d\n", argCnt);
+
+                        // Restore Register Context
+                        for (int x=t->value.intval-1; x >=0 ; x -- ) fprintf(fp, "POP R%d\n", x);
+                    }
                     break;
                 }
                 
                 case argNode:{
-                    i = codeGen(t->children[t->childcount-1], c);
-                    fprintf(fp, "PUSH R%d\n", i);
-                    freeReg();
-                    if ( t->childcount == 2 ){
-                        codeGen(t->children[0], c);
+                    // To handle objects being passed
+                    if ( t->children[t->childcount-1]->children
+                        && t->children[t->childcount-1]->nodetype == exprNode
+                        && t->children[t->childcount-1]->children[0]->nodetype == idNode
+                        && t->children[t->childcount-1]->children[0]->Ctype ){
+                        struct Classtable * CTEntry 
+                            = t->children[t->childcount-1]->children[0]->Ctype;
+                        // printf("%s\n", CTEntry->className);
+                        i = codeGen(t->children[t->childcount-1]->children[0], c);
+                        j = getReg();
+                        fprintf(fp, "MOV  R%d, [R%d]\n", j, i);
+                        fprintf(fp, "PUSH R%d\n", j);
+                        fprintf(fp, "ADD  R%d, 1\n", i);
+                        fprintf(fp, "MOV  R%d, [R%d]\n", j, i);
+                        fprintf(fp, "PUSH R%d\n", j);
+                        freeReg();
+                        freeReg();
+                    }
+                    else{
+                        i = codeGen(t->children[t->childcount-1], c);
+                        fprintf(fp, "PUSH R%d\n", i);
+                        freeReg();
+                        if ( t->childcount == 2 ){
+                            codeGen(t->children[0], c);
+                        }
                     }
                     break;
                 }
@@ -566,9 +729,11 @@ int codeGen( struct tnode *t , struct Context * c) {
                     } 
                     // Pop out the local variables from the stack
                     for (int x=0;x<c->localvars;x++) fprintf(fp, "POP R0\n");
+                    
                     // set BP to the old value of BP in the stack
                     if ( c->mainFunc == 0 ) fprintf(fp, "POP BP\n");
                     fprintf(fp, "RET\n");
+                    freeReg();
                     break;
                 }
                 
@@ -603,13 +768,27 @@ int codeGen( struct tnode *t , struct Context * c) {
                         break;
                     }
                     // Handling member access for User Defined Types
-                    else{
+                    else if ( t->children[0]->type->generalType == USER_DEF ) {
                         // If it is a member then i has the address just need to access it
                         i = codeGen(t->children[0], c);
                         fprintf(fp, "MOV R%d, [R%d]\n", i, i);
                         // Add the fieldindex value to the address 
                         struct Fieldlist * f = FLookup(t->children[0]->type, t->children[1]->name);
                         fprintf(fp, "ADD R%d, %d\n", i, f->fieldIndex );
+                        break;
+                    }
+                    // Handling Function Calls
+                    else if ( t->Ctype ){
+                        i = codeGen(t->children[0], c);
+                        struct Fieldlist * member = MemberLookup(t->children[1]->name, t->Ctype);
+                        struct MemberFunclist * method
+                            = MethodLookup(t->children[1]->name, t->Ctype);
+                        if ( member != NULL ){
+                            // printf("Member");
+                            fprintf(fp, "MOV R%d, [R%d]\n", i, i);
+                            fprintf(fp, "ADD R%d, %d\n", i, member->fieldIndex);
+                        }
+                        else if (method == NULL) { printf("Invalid Member Access\n"); exit(1); }
                         break;
                     }
                 }
@@ -662,6 +841,7 @@ int codeGen( struct tnode *t , struct Context * c) {
                     }
                     break;
                 }
+            
             }
         }
         // Instructions requiring 2 registers

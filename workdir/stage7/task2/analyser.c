@@ -10,6 +10,7 @@ struct Classtable* classTable;
 int SP;
 int *arr;
 int globalFlabel;
+int classIndex;
 
 /*Creates and initializes a new node in the expression tree*/
 struct tnode* createTree(   char* name,  
@@ -564,10 +565,12 @@ void assignVarTypes(struct tnode* t,
                             if ( t1 != NULL ) {
                                 t->Lentry = t1;
                                 t->type = t1->type;
+                                t->Ctype = t1->type->Ctype;
                             }
                             else if ( t2 != NULL ){ 
                                 t->Gentry = t2;
                                 t->type = t2->type;
+                                t->Ctype = t2->type->Ctype;
                             }
                             else{
                                 printf("Undeclared Variable: %s\n", t->name);
@@ -800,8 +803,14 @@ void assignVarTypes(struct tnode* t,
                             break;
         }
 
-        case newNode: {     t->Ctype = t->children[0]->type->Ctype;
+        case newNode:   {   t->Ctype = t->children[0]->type->Ctype;
                             t->type = t->children[0]->type;
+                            break;
+                        }
+        case selfNode:  {   struct Lsymbol * t1 = LLookup( "self" , Lentry );
+                            t->Lentry = t1;
+                            t->type = t1->type;
+                            t->Ctype = t1->type->Ctype;
                             break;
                         }
         
@@ -950,15 +959,18 @@ struct Lsymbol* addParamListToLsymbolTable(struct Paramstruct * pl, struct Lsymb
 struct Classtable* CInstall(char *name, struct Classtable * parent){
     struct Classtable* temp = (struct Classtable*)malloc(sizeof(struct Classtable));
 
+    if ( CLookup(name) != NULL ) {printf("Duplicate class: %s\n", name);exit(1);}
+
     temp->className = (char*)malloc(sizeof(char)*20);
     strcpy(temp->className, name);
     temp->memberField = NULL;      
     temp->vFuncptr = NULL;    
     temp->parentPtr = parent;
-    temp->classIndex = -1;
+    temp->classIndex = classIndex++;
     temp->fieldCount = -1;                     
     temp->methodCount = -1;                    
     temp->next = NULL;
+    SP += 8;
     
     // Adding to class table
     if ( classTable == NULL ) classTable = temp;
@@ -1093,6 +1105,12 @@ void checkMDef(struct tnode* t, struct Classtable* CTEntry){
     }
     else if ( t->nodetype == MDefNode ){
         struct MemberFunclist * method = MethodLookup(t->children[1]->name, CTEntry);
+        // Checking if function is declared
+        if ( method == NULL ) {
+            printf("Method Not Declared: %s in class %s\n",
+                    t->children[1]->name, CTEntry->className); 
+            exit(1);
+        }
         // Checking if return type matches
         if ( method->type != t->children[0]->type ){
             printf("Mismatch in Return Type: %s\n", t->children[1]->name);
@@ -1116,8 +1134,9 @@ void checkMDef(struct tnode* t, struct Classtable* CTEntry){
             t->Lentry = addParamListToLsymbolTable(method->paramlist, t->children[3]->Lentry);
         }
         else t->Lentry = t->children[3]->Lentry;
+        // Adding an entry for self
         LInstall("self", TLookup(CTEntry->className), t);
-
+        // Adding binding address to all entries
         addBindingAddr(t->Lentry);
 
         // Make LST accessible to all Body and skip the Local Declarations
@@ -1137,15 +1156,6 @@ int checkDescendant(struct Classtable * parent, struct Classtable * child ){
     }
     return 0;
 }
-
-// void addMemberstoLST(struct tnode* t, struct Classtable* CTEntry){
-//     struct Fieldlist * f = CTEntry->memberField;
-//     while(f){
-//         LInstall(f->name, f->type, t);
-//         f = f->next;
-//     }
-//     return;
-// }
 
 void printClassTable(){
     struct Classtable* temp = classTable;

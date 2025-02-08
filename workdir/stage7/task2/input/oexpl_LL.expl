@@ -90,7 +90,9 @@ int main() {
             x = x - 1;
         endwhile;
 
+        write("Length - ");
         write(obj.getlength());
+        write("List - ");
         x = obj.printlinkedlist();
 
         return 1;

@@ -9,7 +9,7 @@ exit_code=$?
 rm t1
 
 if [ $exit_code -ne 1 ]; then
-    lex label_translator.l
+    lex label_translator2.l
     gcc lex.yy.c -o t1
     ./t1
     rm t1 lex.yy.c
