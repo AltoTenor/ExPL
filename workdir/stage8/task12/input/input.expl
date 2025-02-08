@@ -1,0 +1,41 @@
+class 
+fact {
+    decl
+        int x;
+        int a(int n);
+    enddecl
+
+    int a(int n) {
+        begin
+            write(n);
+            return 1;
+        end
+    }
+}
+fact1 extends fact {
+    decl
+        int y;
+        int a(int n);
+    enddecl
+
+    int a(int n) {
+        begin
+            write(n+3);
+            return 1;
+        end
+    }
+}
+endclass
+
+int main() {
+    decl
+        int x;
+        fact obj;
+    enddecl
+    begin
+        x = initialize();
+        obj = new(fact1);
+        x = obj.a(13);
+        return 1;
+    end
+}

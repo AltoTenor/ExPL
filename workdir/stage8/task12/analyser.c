@@ -77,8 +77,14 @@ struct tnode* createTree(   char* name,
         
         case classDefNode:{ // Make the Class Table Entry
                             struct Classtable * cur = CLookup(children[0]->name);
+                            
+                            // Setting up members
                             cur->memberField = fetchFieldList(children[1]);
+                            cur->memberField = addParentFieldList(cur);
+                            
+                            // Setting up methods
                             cur->vFuncptr = constructMethodList(children[2]);
+                            cur->vFuncptr = addParentMethods(cur);
                             
                             // Redeclare Checks
                             int fc = 0, mc = 0;
@@ -96,18 +102,7 @@ struct tnode* createTree(   char* name,
                                 i = i->next; fc++;
                             }
                             struct MemberFunclist * x = cur->vFuncptr;
-                            while (x){
-                                struct MemberFunclist * y = cur->vFuncptr;
-                                while (y){
-                                    if ( x->funcposition != y->funcposition 
-                                        && strcmp(x->methodName, y->methodName) == 0){
-                                        printf("Function Redeclared: %s\n", x->methodName); 
-                                        exit(1);
-                                    }
-                                    y = y->next;
-                                }
-                                x = x->next; mc++;
-                            }
+                            while (x){ x = x->next; mc++; }
                             
                             cur ->fieldCount = fc;
                             cur ->methodCount = mc;
@@ -612,6 +607,7 @@ void assignVarTypes(struct tnode* t,
                                     && t->children[1]->Ctype 
                                     && checkDescendant( t->children[0]->Ctype,
                                                         t->children[1]->Ctype );
+                            printf("OPS %s %d %d\n",t->children[0]->name, op5, op6);
                             if ( op1 == 1 && op2 == 0 && op3 == 0  && op5 == 0 && op6 == 0){
                                 printf("Assignment Type Wrong\n");
                                 printf("Trying to assign %s to %s\n",
@@ -629,6 +625,7 @@ void assignVarTypes(struct tnode* t,
                             break;
         
         case exprNode:      t->type = t->children[0]->type;
+                            t->Ctype = t->children[0]->Ctype;
                             break;
 
         
@@ -756,6 +753,7 @@ void assignVarTypes(struct tnode* t,
                                     printf("Keyword \"self\" used outside class definition\n");
                                     exit(1);   
                                 }
+                                struct MemberFunclist * x = classEntry->vFuncptr;
                                 struct Fieldlist * mem 
                                     = MemberLookup(t->children[1]->name, classEntry);
                                 struct MemberFunclist * met 
@@ -1160,6 +1158,119 @@ int checkDescendant(struct Classtable * parent, struct Classtable * child ){
         child = child->parentPtr;
     }
     return 0;
+}
+
+struct Fieldlist * addParentFieldList(struct Classtable * CTEntry){
+    if ( CTEntry->parentPtr == NULL ) return CTEntry->memberField;
+    
+    struct Fieldlist *head = NULL, *tail=NULL;
+    struct Fieldlist *parentMem = CTEntry->parentPtr->memberField;
+    
+    // Copying parent member field into a new member field
+    while ( parentMem ){
+        struct Fieldlist * temp = (struct Fieldlist * )malloc(sizeof(struct Fieldlist));
+        temp->name = (char*)malloc(sizeof(char)*20);
+
+        strcpy(temp->name, parentMem->name);
+        temp->fieldIndex = parentMem->fieldIndex;
+        temp->type = parentMem->type;
+        temp->next = NULL;
+
+        if ( head == NULL ){
+            head = temp;
+            tail = temp;
+        }
+        else {
+            tail->next = temp;
+            tail = temp;
+        }
+        parentMem = parentMem -> next;
+    }
+    int offset = tail->fieldIndex+1;
+    tail->next = CTEntry->memberField;
+    tail = tail->next;
+    while ( tail ) { tail->fieldIndex += offset; tail = tail->next;}
+    return head;
+
+}
+
+struct MemberFunclist * addParentMethods(struct Classtable * CTEntry){
+    // Checking to see if any function is duplicate in the new declaration
+    struct MemberFunclist * x = CTEntry->vFuncptr;
+    while (x){
+        struct MemberFunclist * y = CTEntry->vFuncptr;
+        while (y){
+            if ( x->funcposition != y->funcposition 
+                && strcmp(x->methodName, y->methodName) == 0){
+                printf("Function Redeclared: %s\n", x->methodName); 
+                exit(1);
+            }
+            y = y->next;
+        }
+        x = x->next;
+    }
+
+    // If no parent return this itself
+    if ( CTEntry->parentPtr == NULL ) return CTEntry->vFuncptr;
+
+    // Making a copy of the parent method list
+    struct MemberFunclist *head = NULL, *tail=NULL ,*tail2 = NULL;
+    struct MemberFunclist *parentMet = CTEntry->parentPtr->vFuncptr;
+    
+    // Copying parent member field into a new member field
+    while ( parentMet ){
+        struct MemberFunclist * temp = (struct MemberFunclist * )malloc(sizeof(struct MemberFunclist));
+        temp->methodName = (char*)malloc(sizeof(char)*20);
+
+        strcpy(temp->methodName, parentMet->methodName);
+        temp->type = parentMet->type;
+        temp->flabel = parentMet->flabel;
+        temp->funcposition = parentMet->funcposition;
+        temp->paramlist = parentMet->paramlist;
+        temp->next = NULL;
+
+        if ( head == NULL ){
+            head = temp;
+            tail = temp;
+        }
+        else {
+            tail->next = temp;
+            tail = temp;
+        }
+        parentMet = parentMet -> next;
+    }
+
+    // Replacing or adding the new methods
+    struct MemberFunclist * newMethod = CTEntry->vFuncptr;
+    while ( newMethod ){
+        tail = head;
+        int redefinedFlag = 0;
+        while ( tail ){
+            if ( strcmp(tail->methodName, newMethod->methodName) == 0 ){
+                redefinedFlag = 1;
+                tail->flabel = newMethod->flabel;
+                struct Paramstruct * p = tail->paramlist;
+                while(p) { p->checked = 0; p = p->next; }
+                // Check if signature of redeclaration is same or not
+                if ( tail->type != newMethod->type ){
+                    printf("Cannot redeclare function with different type: %s\n", 
+                        newMethod->methodName); 
+                    exit(1);
+                }
+            }
+            tail2 = tail;
+            tail = tail->next;
+        }
+        tail = newMethod -> next;
+        // If function is a new function
+        if ( redefinedFlag == 0 ){
+            tail2 -> next = newMethod;
+            newMethod->next = NULL;
+            newMethod->funcposition = tail2->funcposition+1;
+        }
+        newMethod = tail;
+    }
+    return head;
 }
 
 void printClassTable(){
