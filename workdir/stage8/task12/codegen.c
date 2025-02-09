@@ -863,11 +863,19 @@ int codeGen( struct tnode *t , struct Context * c) {
             
                 // Deleting an object - Storing NULL in both locations
                 case NODE_DELETE: {
+                    for (int x = 0; x < register_index; x ++ ){
+                        fprintf(fp, "PUSH R%d\n", x);
+                    }
                     i = codeGen(t->children[0], c);
+                    fprintf(fp, "MOV R19, [R%d]\n", i);
                     fprintf(fp, "MOV [R%d], -1\n", i);
                     fprintf(fp, "ADD  R%d,   1\n", i);
                     fprintf(fp, "MOV [R%d], -1\n", i);
-                    fprintf(fp, "MOV  R%d,   0\n", i);
+                    fprintf(fp, "CALL FREE\n");
+                    fprintf(fp, "MOV R%d, R0\n", i);
+                    for (int x = register_index-2; x >= 0; x -- ){
+                        fprintf(fp, "POP R%d\n", x);
+                    }
                 }
             }
         }
