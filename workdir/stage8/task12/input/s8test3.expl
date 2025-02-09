@@ -25,7 +25,6 @@ class Rectangle {
 
 Square extends Rectangle {
     decl
-        int n;
         int setDimensions();
     enddecl
 

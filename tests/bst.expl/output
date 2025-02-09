@@ -1,0 +1,27 @@
+Inorder Print
+10
+20
+40
+50
+70
+90
+100
+___
+preOrder Prin
+50
+20
+10
+40
+70
+90
+100
+___
+postOrder Pri
+10
+40
+20
+100
+90
+70
+50
+Machine is halting.

@@ -77,13 +77,10 @@ int main() {
         n = initialize();
         
         first = new(Person);
-        a = "Rogers";
-        temp = first.createPerson(a, 37);
+        temp = first.createPerson("Rogers", 37);
         
-        a = "Mathew";
-        b = "CS";
         second = new(Student);
-        temp = second.createStudent(a, 35, 999, b);
+        temp = second.createStudent("Mathew", 35, 999, "CS");
         
         read(n);
         

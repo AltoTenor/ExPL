@@ -84,7 +84,7 @@ digit [0-9]
                 yylval.no = createTree(yytext, NULL, "void", idNode,  NULL , 0 , NULL, NULL);
                 return ID; }
 
-(\"(.)*\")  {   union Constant* c = (union Constant*)malloc(sizeof(union Constant));
+(\"[^\"]*\")  {   union Constant* c = (union Constant*)malloc(sizeof(union Constant));
                 c->strval = (char*)malloc(sizeof(char)*20);
                 strcpy( c->strval, yytext );
                 yylval.no = createTree(NULL, c, "str", strConstNode,  NULL , 0 , NULL, NULL);

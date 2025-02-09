@@ -2,12 +2,13 @@ class
 fact {
     decl
         int x;
-        int a(int n);
+        int a(str mssg);
     enddecl
 
-    int a(int n) {
+    int a(str mssg) {
         begin
-            write(n);
+            write("Parent: ");
+            write(mssg);
             return 1;
         end
     }
@@ -15,12 +16,13 @@ fact {
 fact1 extends fact {
     decl
         int y;
-        int a(int n);
+        int a(str mssg);
     enddecl
 
-    int a(int n) {
+    int a(str mssg) {
         begin
-            write(n+3);
+            write("Child: ");
+            write(mssg);
             return 1;
         end
     }
@@ -35,7 +37,11 @@ int main() {
     begin
         x = initialize();
         obj = new(fact1);
-        x = obj.a(13);
+        x = obj.a("13");
+        x = delete(obj);
+        if ( obj == null ) then
+            write("Deleted");
+        endif;
         return 1;
     end
 }

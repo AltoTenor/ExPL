@@ -28,7 +28,6 @@ A {
 
 B extends A {
     decl
-        int x;
         int f1();
     enddecl
 

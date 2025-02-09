@@ -185,9 +185,6 @@ int findParam(struct Paramstruct * p, char * name){
     return 0;
 }
 
-/* TODO
-2. Handle calls to delete
-*/
 
 /* Code Generation to XSM */
 int codeGen( struct tnode *t , struct Context * c) {
@@ -207,8 +204,6 @@ int codeGen( struct tnode *t , struct Context * c) {
 
                 case classDefNode: {
                     i = codeGen(t->children[3], c);
-                    // printf("Generating code for class: %s\n", t->Ctype->className);
-                    // Fix order of operations
                     break;
                 }
                 
@@ -415,7 +410,6 @@ int codeGen( struct tnode *t , struct Context * c) {
                         int ci = 4096 + t->children[1]->Ctype->classIndex*8;
                         fprintf(fp, "ADD R%d, 1\n", i);
                         fprintf(fp, "MOV [R%d], %d\n", i, ci);
-
                     }
                     else if ( t->children[1]->nodetype == exprNode
                             && t->children[1]->children
@@ -852,6 +846,13 @@ int codeGen( struct tnode *t , struct Context * c) {
                     break;
                 }
             
+                case deleteNode: {
+                    i = codeGen(t->children[0], c);
+                    fprintf(fp, "MOV [R%d], -1\n", i);
+                    fprintf(fp, "ADD  R%d,   1\n", i);
+                    fprintf(fp, "MOV [R%d], -1\n", i);
+                    fprintf(fp, "MOV  R%d,   0\n", i);
+                }
             }
         }
         // Instructions requiring 2 registers
@@ -891,11 +892,3 @@ int codeGen( struct tnode *t , struct Context * c) {
     }
     return i;
 }
-
-
-/*
-TO DO LIST
-1. Allow strings to be passed as arguments
-2. Allow non member classes
-3. Implement Delete Node
-*/

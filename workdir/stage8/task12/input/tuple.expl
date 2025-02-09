@@ -8,9 +8,9 @@ int f()
 		tuple faculty (int a, int b, int c) x;
 	enddecl
 	begin
-		y.a = 7;
-		y.b = 3;
-		y.c = 4;
+		read(y.a);
+		read(y.b);
+		read(y.c);
 		x=y;
 		write(x.a);
 		write(x.b);

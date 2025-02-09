@@ -1,6 +1,5 @@
 class A {
     decl
-        int z;
         int f0();
         int f1();
     enddecl
@@ -22,7 +21,6 @@ class A {
 
 B extends A {
     decl
-        int y;
         int f0();
         int f2();
     enddecl
@@ -44,7 +42,6 @@ B extends A {
 
 C extends B {
     decl
-        int x;
         int f0();
         int f2();
         int f4();

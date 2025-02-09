@@ -125,6 +125,9 @@ ClassDefList : ClassDefList ClassDef {
 ClassDef : Cname '{' DECL FieldDeclList MethodDecl ENDDECL MethodDefns '}' {
         $$ = createTree(NULL, NULL, "void", classDefNode,  alloc_4($1, $4, $5, $7) , 4 , NULL, NULL);
     }
+    |  Cname '{' DECL MethodDecl ENDDECL MethodDefns '}' {
+        $$ = createTree(NULL, NULL, "void", classDefNode,  alloc_4($1, NULL, $4, $6) , 4 , NULL, NULL);
+    }
     |  Cname '{' DECL FieldDeclList ENDDECL MethodDefns '}' {
         printf("Missing Function Declaration.\n");
         printf("If no functions are declared, recommended to use User Defined types\n");
@@ -329,23 +332,12 @@ stmt : AsgStmt      { $$ = $1; }
 ReturnStmt: RETURN expr ';' {
         $$ = createTree(NULL, NULL, "void", returnNode , alloc_1($2), 1, NULL, NULL);
     }
-    | RETURN STRING ';' {
-        $$ = createTree(NULL, NULL, "void", returnNode , alloc_1($2), 1, NULL, NULL);
-    }
 ;
 
 AsgStmt : identifier '=' expr ';' {
         $$ = createTree(NULL, NULL, "void", assignNode , alloc_2($1, $3), 2, NULL, NULL);
     }
     | '*' identifier '=' expr ';' {
-        printf("%s\n", $2->type->name);
-        struct tnode * t = createTree(NULL, NULL, "void", derefOpNode, alloc_1($2), 1, NULL, NULL);
-        $$ = createTree(NULL, NULL, "void", assignNode, alloc_2(t, $4), 2, NULL, NULL);
-    }
-    | identifier '=' STRING ';' {
-        $$ = createTree(NULL, NULL, "void", assignNode , alloc_2($1, $3), 2, NULL, NULL);
-    }
-    | '*' identifier '=' STRING ';' {
         printf("%s\n", $2->type->name);
         struct tnode * t = createTree(NULL, NULL, "void", derefOpNode, alloc_1($2), 1, NULL, NULL);
         $$ = createTree(NULL, NULL, "void", assignNode, alloc_2(t, $4), 2, NULL, NULL);
@@ -370,9 +362,6 @@ InputStmt : READ '(' identifier ')' ';' {
 ;
 
 OutputStmt : WRITE '(' expr ')' ';'{
-        $$ = createTree(NULL, NULL, "void", writeNode, alloc_1($3), 1, NULL, NULL);
-    }
-    | WRITE '(' STRING ')' ';'{
         $$ = createTree(NULL, NULL, "void", writeNode, alloc_1($3), 1, NULL, NULL);
     }
 ;
@@ -416,6 +405,7 @@ expr : '(' expr ')'     {   $$ = $2; }
     | expr OR expr      {   $$ = createTree(NULL, NULL, "boolean", orNode, alloc_2($1, $3), 2, NULL, NULL); }
     | '*' expr          {   $$ = createTree(NULL, NULL, "void", derefOpNode, alloc_1($2), 1, NULL, NULL); }
     | NUM               {   $$ = $1; }
+    | STRING            {   $$ = $1; }
     | identifier        {   $$ = createTree(NULL, NULL, "void", exprNode, alloc_1($1), 1, NULL, NULL); }
     | '&' identifier    {   $$ = createTree(NULL, NULL, "void", addrNode, alloc_1($2), 1, NULL, NULL); }
     | identifier '(' ')' {

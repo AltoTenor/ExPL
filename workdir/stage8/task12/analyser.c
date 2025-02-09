@@ -425,6 +425,7 @@ void printTypeTable(){
 }
 
 struct Fieldlist * fetchFieldList(struct tnode * t){
+    if ( t == NULL ) return NULL;
     if ( t->nodetype == paramNode ){
         struct Fieldlist * f = (struct Fieldlist * )malloc(sizeof(struct Fieldlist));
         f->name = (char*)malloc(sizeof(char)*20);
@@ -607,7 +608,6 @@ void assignVarTypes(struct tnode* t,
                                     && t->children[1]->Ctype 
                                     && checkDescendant( t->children[0]->Ctype,
                                                         t->children[1]->Ctype );
-                            printf("OPS %s %d %d\n",t->children[0]->name, op5, op6);
                             if ( op1 == 1 && op2 == 0 && op3 == 0  && op5 == 0 && op6 == 0){
                                 printf("Assignment Type Wrong\n");
                                 printf("Trying to assign %s to %s\n",
@@ -670,9 +670,15 @@ void assignVarTypes(struct tnode* t,
         case gtNode:
         case eqNode:
         case neNode:{       int op1 = t->children[0]->type == t->children[1]->type;
-                            int op2  = t->children[0]->type->generalType == USER_DEF 
+                            int op2a  = t->children[0]->type->generalType == USER_DEF 
                                     && t->children[1]->type == TLookup("null"); 
-                            if ( op1 == 0 &&  op2 == 0 ){
+                            int op2b  = t->children[1]->type->generalType == USER_DEF 
+                                    && t->children[0]->type == TLookup("null"); 
+                            int op3a  = t->children[0]->type->generalType == CLASS_TYPE 
+                                    && t->children[1]->type == TLookup("null"); 
+                            int op3b  = t->children[1]->type->generalType == CLASS_TYPE 
+                                    && t->children[0]->type == TLookup("null"); 
+                            if ( op1 == 0 && op2a == 0 && op2b == 0 && op3a == 0 && op3b == 0 ){
                                 printf("Type mismatch in relation op\n");
                                 printf("LHS: type %s\n", t->children[0]->type->name);
                                 printf("RHS: type %s\n", t->children[1]->type->name);
@@ -1161,7 +1167,9 @@ int checkDescendant(struct Classtable * parent, struct Classtable * child ){
 }
 
 struct Fieldlist * addParentFieldList(struct Classtable * CTEntry){
-    if ( CTEntry->parentPtr == NULL ) return CTEntry->memberField;
+    // If no parent OR parent does not have any members
+    if ( CTEntry->parentPtr == NULL 
+        || CTEntry->parentPtr->memberField == NULL) return CTEntry->memberField;
     
     struct Fieldlist *head = NULL, *tail=NULL;
     struct Fieldlist *parentMem = CTEntry->parentPtr->memberField;
@@ -1186,6 +1194,8 @@ struct Fieldlist * addParentFieldList(struct Classtable * CTEntry){
         }
         parentMem = parentMem -> next;
     }
+    
+    // Setting the field index correctly for new members
     int offset = tail->fieldIndex+1;
     tail->next = CTEntry->memberField;
     tail = tail->next;
@@ -1404,6 +1414,7 @@ char * printType( struct Typetable* t ){
     if ( t ) return (t->name);
     else return "";
 }
+
 char * printClass( struct Classtable* t ){
     if ( t ) return (t->className);
     else return "";
