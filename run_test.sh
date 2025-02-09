@@ -5,14 +5,17 @@ for file in input/*; do
     cd ../../..
     if [[ "$file_name" != "input.expl" ]]; then
         echo "Testing $file_name.."
-        ./xsm -l library.xsm -e $1/output.xsm < tests/$file_name/input > tests/temp
-        if diff -q tests/$file_name/output tests/temp >/dev/null; then
-            echo "OK"
-        else
-            echo "Test Failed"
-            diff tests/$file_name/output tests/temp
-            exit 1
-        fi
+        for input_file in tests/$file_name/input*; do
+            extracted_part="${input_file##*/input}"
+            ./xsm -l library.xsm -e $1/output.xsm < $input_file > tests/temp
+            if diff -q tests/$file_name/output$extracted_part tests/temp >/dev/null; then
+                echo "OK"
+            else
+                echo "Test Failed"
+                diff tests/$file_name/output tests/temp
+                exit 1
+            fi
+        done
     fi
     cd $1
 done

@@ -5,7 +5,10 @@ for file in input/*; do
     echo "Setting output for $file_name.."
     cd ../../..
     if [[ "$file_name" != "input.expl" ]]; then
-        ./xsm -l library.xsm -e $1/output.xsm < tests/$file_name/input > tests/$file_name/output
+        for input_file in tests/$file_name/input*; do
+            extracted_part="${input_file##*/input}"
+            ./xsm -l library.xsm -e $1/output.xsm < tests/$file_name/input$extracted_part > tests/$file_name/output$extracted_part
+        done
     fi
     cd $1
 done

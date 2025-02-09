@@ -4,7 +4,6 @@
     #include <string.h>
     #include <stddef.h>
     #include "analyser.h"
-    #include "codegen.h"
     int yylex(void);
     int yyerror(char const *s);
     struct tnode** alloc_1(struct tnode * t1);
@@ -58,55 +57,46 @@
 
 /* Program Root section */
 Program : TypeDefBlock ClassDefBlock GDeclBlock FDefBlock MainBlock {          
-        $$ = createTree(NULL, NULL, "void", rootNode,  alloc_5($1, $2, $3, $4, $5) , 5 , NULL, NULL); 
-        printTree($$, NULL, 0);
+        $$ = createTree(NULL, NULL, "void", NODE_ROOT, alloc_5($1, $2, $3, $4, $5) , 5, NULL, NULL); 
         printTypeTable();
-        initialize();
-        struct Context * c = (struct Context *)malloc(sizeof(struct Context));
-        c->jumpLabels = (int *)malloc(sizeof(int)*2);
-        c->mainFunc = 0;
-        codeGen($2, c);
-        codeGen($4, c);
-        c->mainFunc = 1;
-        codeGen($5, c);
+        printGSymbolTable();
+        printTree($$, NULL, 0);
+        compile($$);
     }
     | TypeDefBlock ClassDefBlock GDeclBlock MainBlock {
-        $$ = createTree(NULL, NULL, "void", rootNode,  alloc_4($1, $2, $3, $4) , 4 , NULL, NULL); 
-        printTree($$, NULL, 0);
+        $$ = createTree(NULL, NULL, "void", NODE_ROOT, alloc_5($1, $2, $3, NULL, $4), 5, NULL, NULL); 
         printTypeTable();
-        initialize();
-        struct Context * c = (struct Context *)malloc(sizeof(struct Context));
-        c->jumpLabels = (int *)malloc(sizeof(int)*2);
-        c->mainFunc = 0;
-        codeGen($2, c);
-        c->mainFunc = 1;
-        codeGen($4, c);        
+        printGSymbolTable();
+        printTree($$, NULL, 0);
+        compile($$);
     }
 ;
 
 /* Type Definitions */
 TypeDefBlock : TYPE TypeDefList ENDTYPE { $$ = $2;  }
-    | { $$ = NULL; printTypeTable(); }
+    | { $$ = NULL; }
 ;
 TypeDefList : TypeDefList TypeDef {
-        $$ = createTree(NULL, NULL, "void", connectorNode,  alloc_2($1, $2) , 2 , NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR,  alloc_2($1, $2) , 2 , NULL, NULL);
     }
     | TypeDef { $$ = $1; }
 ;
 TypeDef : NewTypeID '{' FieldDeclList '}' {
-        $$ = createTree(NULL, NULL, "void", typeDefNode,  alloc_2($1, $3) , 2 , NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_TYPEDEF,  alloc_2($1, $3) , 2 , NULL, NULL);
         setUserDefType($$);
     }
 ;
 NewTypeID: ID { TInstall($1->name, 1, NULL, USER_DEF, NULL); $$ = $1; }
 ;
+
+/* Field Declarations (Used in USERDEF and CLASS and TUPLES) */ 
 FieldDeclList : FieldDeclList FieldDecl {
-        $$ = createTree(NULL, NULL, "void", connectorNode,  alloc_2($1, $2) , 2 , NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR,  alloc_2($1, $2) , 2 , NULL, NULL);
     }   
     | FieldDecl { $$ = $1; }
 ;
 FieldDecl : Type ID ';' {
-        $$ = createTree(NULL, NULL, "void", paramNode,  alloc_2($1, $2) , 2 , NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_PARAM,  alloc_2($1, $2) , 2 , NULL, NULL);
     }
 ;
 
@@ -118,15 +108,15 @@ ClassDefBlock : CLASS ClassDefList ENDCLASS {
     | { $$ = NULL; }
 ;
 ClassDefList : ClassDefList ClassDef {
-        $$ = createTree(NULL, NULL, "void", connectorNode,  alloc_2($1, $2) , 2 , NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR,  alloc_2($1, $2) , 2 , NULL, NULL); 
     }
     | ClassDef { $$ = $1; }
 ;
 ClassDef : Cname '{' DECL FieldDeclList MethodDecl ENDDECL MethodDefns '}' {
-        $$ = createTree(NULL, NULL, "void", classDefNode,  alloc_4($1, $4, $5, $7) , 4 , NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_CLASS_DEF,  alloc_4($1, $4, $5, $7) , 4 , NULL, NULL);
     }
     |  Cname '{' DECL MethodDecl ENDDECL MethodDefns '}' {
-        $$ = createTree(NULL, NULL, "void", classDefNode,  alloc_4($1, NULL, $4, $6) , 4 , NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_CLASS_DEF,  alloc_4($1, NULL, $4, $6) , 4 , NULL, NULL);
     }
     |  Cname '{' DECL FieldDeclList ENDDECL MethodDefns '}' {
         printf("Missing Function Declaration.\n");
@@ -135,34 +125,35 @@ ClassDef : Cname '{' DECL FieldDeclList MethodDecl ENDDECL MethodDefns '}' {
     }
 ;
 Cname : ID { 
-        $$ = createTree(NULL, NULL, "void", CNameNode,  alloc_2($1, NULL) , 2, NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_CNAME,  alloc_2($1, NULL) , 2, NULL, NULL); 
     }
     | ID EXTENDS ID { 
-        $$ = createTree(NULL, NULL, "void", CNameNode,  alloc_2($1, $3) , 2, NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_CNAME,  alloc_2($1, $3) , 2, NULL, NULL);
     }
 ;
+/* Class Method Declarations */
 MethodDecl : MethodDecl MDecl { 
-        $$ = createTree(NULL, NULL, "void", connectorNode,  alloc_2($1, $2) , 2 , NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR,  alloc_2($1, $2) , 2 , NULL, NULL); 
     }
     | MDecl { $$ = $1; }
 ;
 MDecl : Type ID '(' ParamList ')' ';' { 
-        $$ = createTree(NULL, NULL, "void", MDeclNode,  alloc_3($1, $2, $4) , 3 , NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_MDECL,  alloc_3($1, $2, $4) , 3 , NULL, NULL); 
     }
     | Type ID '(' ')' ';' { 
-        $$ = createTree(NULL, NULL, "void", MDeclNode,  alloc_3($1, $2, NULL) , 3 , NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_MDECL,  alloc_3($1, $2, NULL) , 3 , NULL, NULL); 
     }
 ;
 MethodDefns : MethodDefns Mdef { 
-        $$ = createTree(NULL, NULL, "void", connectorNode,  alloc_2($1, $2) , 2 , NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR,  alloc_2($1, $2) , 2 , NULL, NULL); 
     }
     | Mdef { $$ = $1; }
 ;
 Mdef : Type ID '(' ParamList ')' '{' FuncBody '}' { 
-        $$ = createTree(NULL, NULL, "void", MDefNode, alloc_4($1, $2, $4, $7), 4, NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_MDEF, alloc_4($1, $2, $4, $7), 4, NULL, NULL);
     }
     | Type ID '(' ')' '{' FuncBody '}' { 
-        $$ = createTree(NULL, NULL, "void", MDefNode, alloc_4($1, $2, NULL, $6), 4, NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_MDEF, alloc_4($1, $2, NULL, $6), 4, NULL, NULL);
     }
 ;
 
@@ -171,78 +162,78 @@ GDeclBlock : DECL GDeclList ENDDECL { $$ = $2; }
     | { $$ = NULL; }
 ;
 GDeclList : GDeclList GDecl {
-        $$ = createTree(NULL, NULL, "void", connectorNode,  alloc_2($1, $2) , 2 , NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR,  alloc_2($1, $2) , 2 , NULL, NULL); 
     }
     | GDecl { $$ = $1; }
 ;
 GDecl : Type GidList ';' {
-        $$ = createTree(NULL, NULL, "void", GDeclNode,  alloc_2($1, $2) , 2 , NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_GDECL,  alloc_2($1, $2) , 2 , NULL, NULL); 
         setGTypes( $2, $1->type, NULL );
     }
     | TUPLE ID '(' ParamList ')' IdList ';'{
-        $$ = createTree(NULL, NULL, "void", tupleNode, alloc_3($2, $4, $6), 3, NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_TUPLE, alloc_3($2, $4, $6), 3, NULL, NULL);
         initTuple($$->children, NULL);
     }
 ;
 GidList : GidList ',' Gid {
-        $$ = createTree(NULL, NULL, "void", connectorNode,  alloc_2($1, $3) , 2 , NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR,  alloc_2($1, $3) , 2 , NULL, NULL); 
     }
     | Gid { $$ = $1; }
 ;
 Gid : ID { $$ = $1; }
     | '*' ID { 
-        $$ = createTree(NULL, NULL, "void", ptrNode,  alloc_1($2) , 1 , NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_PTR,  alloc_1($2) , 1 , NULL, NULL); 
     }
     | ID '[' NUM ']'  { 
-        $$ = createTree(NULL, NULL, "void", arrTypeNode,  alloc_2($1, $3) , 2 , NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_ARR_TYPE,  alloc_2($1, $3) , 2 , NULL, NULL); 
     }
     | ID '(' ParamList ')' {
-        $$ = createTree(NULL, NULL, "void", funcTypeGDeclNode,  alloc_2($1, $3) , 2 , NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_GDECL_FUNC,  alloc_2($1, $3) , 2 , NULL, NULL); 
     }
     | ID '(' ')' {
-        $$ = createTree(NULL, NULL, "void", funcTypeGDeclNode,  alloc_2($1, NULL) , 2 , NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_GDECL_FUNC,  alloc_2($1, NULL) , 2 , NULL, NULL); 
     }
     | '*' ID '(' ParamList ')' {
-        $$ = createTree(NULL, NULL, "void", funcPtrTypeGDeclNode,  alloc_2($2, $4) , 2 , NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_GDECL_PTRFUNC,  alloc_2($2, $4) , 2 , NULL, NULL); 
     }
     | '*' ID '(' ')' {
-        $$ = createTree(NULL, NULL, "void", funcPtrTypeGDeclNode,  alloc_2($2, NULL) , 2 , NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_GDECL_PTRFUNC,  alloc_2($2, NULL) , 2 , NULL, NULL); 
     }
 ;
 
 /* Function Definition */
 FDefBlock : FDefBlock Fdef {
-        $$ = createTree(NULL, NULL, "void", connectorNode, alloc_2($1, $2), 2, NULL, NULL );
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR, alloc_2($1, $2), 2, NULL, NULL );
     }
     | Fdef { $$ = $1; }
 ;
 Fdef : Type ID '(' ParamList ')' '{' FuncBody '}' {
-        $$ = createTree(NULL, NULL, "void", FDefNode, alloc_4($1, $2, $4, $7), 4, NULL, $7-> Lentry );
-        printf("LST %s function\n", $2->name);
+        $$ = createTree(NULL, NULL, "void", NODE_FDEF, alloc_4($1, $2, $4, $7), 4, NULL, $7-> Lentry );
+        printf("LST: %s function\n", $2->name);
         printLSymbolTable($$->Lentry);
     }
     | Type ID '(' ')' '{' FuncBody '}' {
-        $$ = createTree(NULL, NULL, "void", FDefNode, alloc_4($1, $2, NULL, $6), 4, NULL, $6 -> Lentry);
-        printf("LST %s function\n", $2->name);
+        $$ = createTree(NULL, NULL, "void", NODE_FDEF, alloc_4($1, $2, NULL, $6), 4, NULL, $6 -> Lentry);
+        printf("LST: %s function\n", $2->name);
         printLSymbolTable($$->Lentry);
     }
     | Type '*' ID '(' ParamList ')' '{' FuncBody '}' {
         $1->type = make_pointer($1->type);
-        $$ = createTree(NULL, NULL, "void", FDefNode, alloc_4($1, $3, $5, $8), 4, NULL, $8-> Lentry );
-        printf("LST %s function\n", $3->name);
+        $$ = createTree(NULL, NULL, "void", NODE_FDEF, alloc_4($1, $3, $5, $8), 4, NULL, $8-> Lentry );
+        printf("LST: %s function\n", $3->name);
         printLSymbolTable($$->Lentry);
     }
     | Type '*' ID '(' ')' '{' FuncBody '}' {
         $1->type = make_pointer($1->type);
-        $$ = createTree(NULL, NULL, "void", FDefNode, alloc_4($1, $3, NULL, $7), 4, NULL, $7 -> Lentry);
-        printf("LST %s function\n", $3->name);
+        $$ = createTree(NULL, NULL, "void", NODE_FDEF, alloc_4($1, $3, NULL, $7), 4, NULL, $7 -> Lentry);
+        printf("LST: %s function\n", $3->name);
         printLSymbolTable($$->Lentry);
     }
 ;
 /* Main Function */
 MainBlock: Type MAIN '(' ')' '{' FuncBody '}' {
         if ( $1->type != TLookup("int") ){ printf("Main not INT\n"); exit(1);}
-        $$ = createTree(NULL, NULL, "void", FDefNode, alloc_4($1, $2, NULL, $6), 4, NULL, $6 -> Lentry);
+        $$ = createTree(NULL, NULL, "void", NODE_FDEF, alloc_4($1, $2, NULL, $6), 4, NULL, $6 -> Lentry);
         printf("LST %s function\n", $2->name);
         printLSymbolTable($$->Lentry);
     }
@@ -250,9 +241,9 @@ MainBlock: Type MAIN '(' ')' '{' FuncBody '}' {
 FuncBody : LdeclBlock Body {
         struct Lsymbol * ltemp = NULL;
         if ($1 != NULL ) ltemp = $1->Lentry;
-        $$ = createTree(NULL, NULL, "void", FBodyNode, alloc_2($1, $2), 2, NULL, ltemp );
+        $$ = createTree(NULL, NULL, "void", NODE_FBODY, alloc_2($1, $2), 2, NULL, ltemp );
     }
-    | Body { $$ = createTree(NULL, NULL, "void", FBodyNode, alloc_2(NULL, $1), 2, NULL, NULL ); }
+    | Body { $$ = createTree(NULL, NULL, "void", NODE_FBODY, alloc_2(NULL, $1), 2, NULL, NULL ); }
 ;
 
 /* Local Function Declarations */
@@ -261,49 +252,49 @@ LdeclBlock : DECL LDecList ENDDECL { $$ = $2; }
 ;
 LDecList : LDecList LDecl {
         struct Lsymbol * Lentry = joinLsymbols($1->Lentry, $2->Lentry);
-        $$ = createTree(NULL, NULL, "void", connectorNode, alloc_2($1, $2), 2, NULL, Lentry );
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR, alloc_2($1, $2), 2, NULL, Lentry );
     }
     | LDecl { $$ = $1; }
 ;
 LDecl : Type IdList ';'{
-        $$ = createTree(NULL, NULL, "void", LDeclNode, alloc_2($1, $2), 2, NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_LDECL, alloc_2($1, $2), 2, NULL, NULL);
         setLTypes($1->type, $2, $$);
     }
     | TUPLE ID '(' ParamList ')' IdList ';'{
-        $$ = createTree(NULL, NULL, "void", tupleNode, alloc_3($2, $4, $6), 3, NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_TUPLE, alloc_3($2, $4, $6), 3, NULL, NULL);
         initTuple($$->children, $$);
     }
 ;
 IdList : IdList ',' ID {
-        $$ = createTree(NULL, NULL, "void", connectorNode,  alloc_2($1, $3) , 2 , NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR,  alloc_2($1, $3) , 2 , NULL, NULL); 
     }
     | IdList ',' '*' ID {
-        struct tnode * t = createTree(NULL, NULL, "void", ptrNode, alloc_1($4) , 1, NULL, NULL); 
-        $$ = createTree(NULL, NULL, "void", connectorNode,  alloc_2($1, t) , 2 , NULL, NULL); 
+        struct tnode * t = createTree(NULL, NULL, "void", NODE_PTR, alloc_1($4) , 1, NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR,  alloc_2($1, t) , 2 , NULL, NULL); 
     }
     | '*' ID { 
-        $$ = createTree(NULL, NULL, "void", ptrNode,  alloc_1($2) , 1 , NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_PTR,  alloc_1($2) , 1 , NULL, NULL); 
     }
     | ID { $$ = $1; }
 ;
 
 /* Parameters in Function Declaration */
 ParamList : ParamList ',' Param {
-        $$ = createTree(NULL, NULL, "void", connectorNode,  alloc_2($1, $3) , 2 , NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR,  alloc_2($1, $3) , 2 , NULL, NULL); 
     }
     | Param { $$ = $1; }
 ;
 Param : Type ID {
-        $$ = createTree(NULL, NULL, "void", paramNode,  alloc_2($1, $2) , 2 , NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_PARAM,  alloc_2($1, $2) , 2 , NULL, NULL); 
     }
     | Type '*' ID {
         $1->type = make_pointer($1->type);
-        $$ = createTree(NULL, NULL, "void", paramNode,  alloc_2($1, $3) , 2 , NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_PARAM,  alloc_2($1, $3) , 2 , NULL, NULL); 
     }
 ;
-Type : INT { $$ = createTree(NULL, NULL, "int", typeNode, NULL , 0, NULL, NULL); }
-    | STR { $$ = createTree(NULL, NULL, "str", typeNode, NULL , 0, NULL, NULL); }
-    | ID { $$ = createTree(NULL, NULL, $1->name, typeNode, alloc_1($1) , 1, NULL, NULL); }
+Type : INT { $$ = createTree(NULL, NULL, "int", NODE_TYPE, NULL , 0, NULL, NULL); }
+    | STR { $$ = createTree(NULL, NULL, "str", NODE_TYPE, NULL , 0, NULL, NULL); }
+    | ID { $$ = createTree(NULL, NULL, $1->name, NODE_TYPE, alloc_1($1) , 1, NULL, NULL); }
 ;
 
 
@@ -312,7 +303,7 @@ Body: START slist END { $$ = $2; }
 ;
 
 
-slist : slist stmt  { $$ = createTree(NULL, NULL, "void",connectorNode,  alloc_2($1, $2), 2, NULL, NULL); } 
+slist : slist stmt  { $$ = createTree(NULL, NULL, "void",NODE_CONNECTOR,  alloc_2($1, $2), 2, NULL, NULL); } 
     | stmt          { $$ = $1; }
 ;
 
@@ -330,103 +321,103 @@ stmt : AsgStmt      { $$ = $1; }
 ;
 
 ReturnStmt: RETURN expr ';' {
-        $$ = createTree(NULL, NULL, "void", returnNode , alloc_1($2), 1, NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_RETURN , alloc_1($2), 1, NULL, NULL);
     }
 ;
 
 AsgStmt : identifier '=' expr ';' {
-        $$ = createTree(NULL, NULL, "void", assignNode , alloc_2($1, $3), 2, NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_ASSIGN , alloc_2($1, $3), 2, NULL, NULL);
     }
     | '*' identifier '=' expr ';' {
         printf("%s\n", $2->type->name);
-        struct tnode * t = createTree(NULL, NULL, "void", derefOpNode, alloc_1($2), 1, NULL, NULL);
-        $$ = createTree(NULL, NULL, "void", assignNode, alloc_2(t, $4), 2, NULL, NULL);
+        struct tnode * t = createTree(NULL, NULL, "void", NODE_DEREF, alloc_1($2), 1, NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_ASSIGN, alloc_2(t, $4), 2, NULL, NULL);
     }
 ;
 
 identifier : ID  { $$ = $1; }
     | ID '[' expr ']' {
-        $$ = createTree(NULL, NULL, "int", arrTypeNode,  alloc_2($1, $3), 2 , NULL, NULL);
+        $$ = createTree(NULL, NULL, "int", NODE_ARR_TYPE,  alloc_2($1, $3), 2 , NULL, NULL);
     }
     | identifier '.' ID {
-        $$ = createTree(NULL, NULL, "void", memberNode,  alloc_2($1, $3), 2 , NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_MEMBER,  alloc_2($1, $3), 2 , NULL, NULL);
     }
     | SELF {
-        $$ = createTree(NULL, NULL, "void", selfNode,  NULL, 0, NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_SELF,  NULL, 0, NULL, NULL);
     }
 ;
 
 InputStmt : READ '(' identifier ')' ';' {
-        $$ = createTree(NULL, NULL, "void", readNode, alloc_1($3), 1, NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_READ, alloc_1($3), 1, NULL, NULL);
     }
 ;
 
 OutputStmt : WRITE '(' expr ')' ';'{
-        $$ = createTree(NULL, NULL, "void", writeNode, alloc_1($3), 1, NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_WRITE, alloc_1($3), 1, NULL, NULL);
     }
 ;
 
 IfStmt : IF '(' expr ')' THEN slist ELSE slist ENDIF ';' {
-        $$ = createTree(NULL, NULL, "void", ifNode, alloc_3($3, $6, $8), 3, NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_IF, alloc_3($3, $6, $8), 3, NULL, NULL);
     }
     | IF '(' expr ')' THEN slist ENDIF ';' {
-        $$ = createTree(NULL, NULL, "void", ifNode, alloc_3($3, $6, NULL), 3, NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_IF, alloc_3($3, $6, NULL), 3, NULL, NULL);
     }
 ;
 
 WhileStmt : WHILE '(' expr ')' DO slist ENDWHILE ';' {
-        $$ = createTree(NULL, NULL, "void", whileNode, alloc_2($3,$6), 2, NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_WHILE, alloc_2($3,$6), 2, NULL, NULL);
     }
 ;
 
 DoWhileStmt : DO slist WHILE '(' expr ')' ';' {
-        $$ = createTree(NULL, NULL, "void", dowhileNode, alloc_2($2,$5), 2, NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_DOWHILE, alloc_2($2,$5), 2, NULL, NULL);
     }
 ;
 
 RepeatStmt : REPEAT slist UNTIL '(' expr ')' ';' {
-        $$ = createTree(NULL, NULL, "void", repeatNode, alloc_2($2,$5), 2, NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_REPEAT, alloc_2($2,$5), 2, NULL, NULL);
     }
 ;
 
 expr : '(' expr ')'     {   $$ = $2; }
-    | expr '+' expr     {   $$ = createTree(NULL, NULL, "void", addNode, alloc_2($1, $3), 2, NULL, NULL); }
-    | expr '*' expr     {   $$ = createTree(NULL, NULL, "int", mulNode, alloc_2($1, $3), 2, NULL, NULL); }
-    | expr '-' expr     {   $$ = createTree(NULL, NULL, "void", subNode, alloc_2($1, $3), 2, NULL, NULL); }
-    | expr '/' expr     {   $$ = createTree(NULL, NULL, "int", divNode, alloc_2($1, $3), 2, NULL, NULL); }
-    | expr '%' expr     {   $$ = createTree(NULL, NULL, "int", modNode, alloc_2($1, $3), 2, NULL, NULL); }
-    | expr GE expr      {   $$ = createTree(NULL, NULL, "boolean", geNode, alloc_2($1, $3), 2, NULL, NULL); }
-    | expr LE expr      {   $$ = createTree(NULL, NULL, "boolean", leNode, alloc_2($1, $3), 2, NULL, NULL); }
-    | expr LT expr      {   $$ = createTree(NULL, NULL, "boolean", ltNode, alloc_2($1, $3), 2, NULL, NULL); }
-    | expr GT expr      {   $$ = createTree(NULL, NULL, "boolean", gtNode, alloc_2($1, $3), 2, NULL, NULL); }
-    | expr NE expr      {   $$ = createTree(NULL, NULL, "boolean", neNode, alloc_2($1, $3), 2, NULL, NULL); }
-    | expr EQ expr      {   $$ = createTree(NULL, NULL, "boolean", eqNode, alloc_2($1, $3), 2, NULL, NULL); }
-    | expr AND expr     {   $$ = createTree(NULL, NULL, "boolean", andNode, alloc_2($1, $3), 2, NULL, NULL); }
-    | expr OR expr      {   $$ = createTree(NULL, NULL, "boolean", orNode, alloc_2($1, $3), 2, NULL, NULL); }
-    | '*' expr          {   $$ = createTree(NULL, NULL, "void", derefOpNode, alloc_1($2), 1, NULL, NULL); }
+    | expr '+' expr     {   $$ = createTree(NULL, NULL, "void", NODE_ADD, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr '*' expr     {   $$ = createTree(NULL, NULL, "int", NODE_MUL, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr '-' expr     {   $$ = createTree(NULL, NULL, "void", NODE_SUB, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr '/' expr     {   $$ = createTree(NULL, NULL, "int", NODE_DIV, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr '%' expr     {   $$ = createTree(NULL, NULL, "int", NODE_MOD, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr GE expr      {   $$ = createTree(NULL, NULL, "boolean", NODE_GE, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr LE expr      {   $$ = createTree(NULL, NULL, "boolean", NODE_LE, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr LT expr      {   $$ = createTree(NULL, NULL, "boolean", NODE_LT, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr GT expr      {   $$ = createTree(NULL, NULL, "boolean", NODE_GT, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr NE expr      {   $$ = createTree(NULL, NULL, "boolean", NODE_NE, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr EQ expr      {   $$ = createTree(NULL, NULL, "boolean", NODE_EQ, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr AND expr     {   $$ = createTree(NULL, NULL, "boolean", NODE_AND, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr OR expr      {   $$ = createTree(NULL, NULL, "boolean", NODE_OR, alloc_2($1, $3), 2, NULL, NULL); }
+    | '*' expr          {   $$ = createTree(NULL, NULL, "void", NODE_DEREF, alloc_1($2), 1, NULL, NULL); }
     | NUM               {   $$ = $1; }
     | STRING            {   $$ = $1; }
-    | identifier        {   $$ = createTree(NULL, NULL, "void", exprNode, alloc_1($1), 1, NULL, NULL); }
-    | '&' identifier    {   $$ = createTree(NULL, NULL, "void", addrNode, alloc_1($2), 1, NULL, NULL); }
+    | identifier        {   $$ = createTree(NULL, NULL, "void", NODE_EXPR, alloc_1($1), 1, NULL, NULL); }
+    | '&' identifier    {   $$ = createTree(NULL, NULL, "void", NODE_ADDR, alloc_1($2), 1, NULL, NULL); }
     | identifier '(' ')' {
-        $$ = createTree(NULL, NULL, "void", funcCallNode, alloc_2($1, NULL), 2, NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_FUNC_CALL, alloc_2($1, NULL), 2, NULL, NULL);
     }
     | identifier '(' ArgList ')' {
-        $$ = createTree(NULL, NULL, "void", funcCallNode, alloc_2($1, $3), 2, NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_FUNC_CALL, alloc_2($1, $3), 2, NULL, NULL);
     }
-    | INITIALIZE '(' ')' { $$ = createTree(NULL, NULL, "int", initNode, NULL, 0, NULL, NULL); }
-    | ALLOC '(' ')'      { $$ = createTree(NULL, NULL, "int", allocNode, NULL, 0, NULL, NULL); }
-    | NULL_KEYWORD       { $$ = createTree(NULL, NULL, "null", nullNode, NULL, 0, NULL, NULL); }
-    | FREE '(' ID ')'    { $$ = createTree(NULL, NULL, "int", freeNode, alloc_1($3), 1, NULL, NULL); }
-    | NEW '(' Type ')'   { $$ = createTree(NULL, NULL, "void", newNode, alloc_1($3), 1, NULL, NULL); }
-    | DELETE '(' ID ')'  { $$ = createTree(NULL, NULL, "int", deleteNode, alloc_1($3), 1, NULL, NULL); }
+    | INITIALIZE '(' ')' { $$ = createTree(NULL, NULL, "int", NODE_INIT, NULL, 0, NULL, NULL); }
+    | ALLOC '(' ')'      { $$ = createTree(NULL, NULL, "int", NODE_ALLOC, NULL, 0, NULL, NULL); }
+    | NULL_KEYWORD       { $$ = createTree(NULL, NULL, "null", NODE_NULL, NULL, 0, NULL, NULL); }
+    | FREE '(' ID ')'    { $$ = createTree(NULL, NULL, "int", NODE_FREE, alloc_1($3), 1, NULL, NULL); }
+    | NEW '(' Type ')'   { $$ = createTree(NULL, NULL, "void", NODE_NEW, alloc_1($3), 1, NULL, NULL); }
+    | DELETE '(' ID ')'  { $$ = createTree(NULL, NULL, "int", NODE_DELETE, alloc_1($3), 1, NULL, NULL); }
 ;
 
 ArgList : ArgList ',' expr {
-        $$ = createTree( NULL, NULL, "void", argNode, alloc_2($1, $3), 2, NULL, NULL );
+        $$ = createTree( NULL, NULL, "void", NODE_ARG, alloc_2($1, $3), 2, NULL, NULL );
     }
     | expr {
-        $$ = createTree( NULL, NULL, "void", argNode, alloc_1($1), 1, NULL, NULL );
+        $$ = createTree( NULL, NULL, "void", NODE_ARG, alloc_1($1), 1, NULL, NULL );
     }
 ;
 
@@ -502,7 +493,6 @@ int main(int argc, char **argv) {
     TypeTableCreate();
     yyparse();
 
-    printGSymbolTable();
     printf("YACC: Compiled succesfully (with labels)! \n");
 
     return 0;

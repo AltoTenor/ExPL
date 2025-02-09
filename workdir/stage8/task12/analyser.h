@@ -5,79 +5,79 @@ union Constant{
 
 // ENUMS
 typedef enum {
-    addNode = 1,
-    mulNode = 3,
-    subNode = 7,
-    divNode = 9,
-    modNode = 23,
+    NODE_ADD = 1,
+    NODE_MUL = 3,
+    NODE_SUB = 7,
+    NODE_DIV = 9,
+    NODE_MOD = 23,
 
-    geNode = 11, 
-    leNode = 13,
-    gtNode = 15,
-    ltNode = 17,
-    eqNode = 19, 
-    neNode = 21,
-    andNode = 25,
-    orNode = 27,
+    NODE_GE = 11, 
+    NODE_LE = 13,
+    NODE_GT = 15,
+    NODE_LT = 17,
+    NODE_EQ = 19, 
+    NODE_NE = 21,
+    NODE_AND = 25,
+    NODE_OR = 27,
 
-    connectorNode = 0,
-    readNode = 2,
-    writeNode = 4,
-    assignNode = 6,
+    NODE_CONNECTOR = 0,
+    NODE_READ = 2,
+    NODE_WRITE = 4,
+    NODE_ASSIGN = 6,
 
-    exprNode = 16,
-    derefOpNode = 58,
-    idNode = 8,
-    numNode = 10,
-    strConstNode = 12,
+    NODE_EXPR = 16,
+    NODE_DEREF = 58,
+    NODE_ID = 8,
+    NODE_CONST_NUM = 10,
+    NODE_CONST_STR = 12,
 
-    ifNode = 14,
-    whileNode = 18,
-    dowhileNode = 20,
-    repeatNode = 22,
-    breakNode = 24,
-    contNode = 26,
+    NODE_IF = 14,
+    NODE_WHILE = 18,
+    NODE_DOWHILE = 20,
+    NODE_REPEAT = 22,
+    NODE_BREAK = 24,
+    NODE_CONTINUE = 26,
 
-    typeNode = 28,
+    NODE_TYPE = 28,
 
-    brkpNode = 30,
-    arrTypeNode = 32,
-    ptrNode = 34,
-    addrNode = 56,
+    NODE_BRKP = 30,
+    NODE_ARR_TYPE = 32,
+    NODE_PTR = 34,
+    NODE_ADDR = 56,
 
 
-    LDeclNode = 36,
-    funcTypeGDeclNode = 38,
-    funcPtrTypeGDeclNode = 58,
-    paramNode = 40,
-    GDeclNode = 42,
+    NODE_LDECL = 36,
+    NODE_GDECL_FUNC = 38,
+    NODE_GDECL_PTRFUNC = 58,
+    NODE_PARAM = 40,
+    NODE_GDECL = 42,
 
-    argNode = 44,
-    FDefNode = 46,
-    FBodyNode = 48,
-    returnNode = 52,
-    funcCallNode = 54,
-    tupleNode = 60,
-    memberNode = 62,
+    NODE_ARG = 44,
+    NODE_FDEF = 46,
+    NODE_FBODY = 48,
+    NODE_RETURN = 52,
+    NODE_FUNC_CALL = 54,
+    NODE_TUPLE = 60,
+    NODE_MEMBER = 62,
 
-    typeDefNode = 64,
-    fieldDeclNode = 66,
+    NODE_TYPEDEF = 64,
+    NODE_FIELD_DECL = 66,
 
-    initNode = 68,
-    allocNode = 70,
-    nullNode = 72,
-    freeNode = 74,
+    NODE_INIT = 68,
+    NODE_ALLOC = 70,
+    NODE_NULL = 72,
+    NODE_FREE = 74,
 
-    classDefNode = 76,
-    MDeclNode = 78,
-    MDefNode = 80,
+    NODE_CLASS_DEF = 76,
+    NODE_MDECL = 78,
+    NODE_MDEF = 80,
 
-    CNameNode = 82,
-    selfNode = 84,
-    newNode = 86,
-    deleteNode = 88,
+    NODE_CNAME = 82,
+    NODE_SELF = 84,
+    NODE_NEW = 86,
+    NODE_DELETE = 88,
 
-    rootNode = 50,
+    NODE_ROOT = 50,
 
 } NodeType;
 
@@ -94,9 +94,9 @@ typedef enum {
 typedef struct tnode {
     char* name;
     union Constant value;
-    struct Typetable* type;     // type of variable
-    int nodetype;               // information about non-leaf nodes - read/write/connector/+/* etc.
-    struct Gsymbol *Gentry;     // pointer to GST entry for global variables and functions
+    struct Typetable* type;             // type of variable
+    int nodetype;                       // information non-leaf nodes - read/write/connector/+/* etc
+    struct Gsymbol *Gentry;             // pointer to GST entry for global variables and functions
     struct Lsymbol *Lentry;
     struct tnode **children;
     struct Classtable *Ctype;
@@ -104,63 +104,71 @@ typedef struct tnode {
 }tnode;
 
 struct Typetable{
-    char *name;                 //type name
-    int size;                   //size of the type
-    int generalType;              //
-    struct Fieldlist *fields;   //pointer to the head of fields list
-    struct Typetable *next;     // pointer to the next type table entry
+    char *name;                         // type name
+    int size;                           // size of the type
+    int generalType;                    /* Add a custom field for differentiating 
+                                           between CLASS_TYPE / USER_DEF/ TYPE_TUPLE */
+
+    struct Fieldlist *fields;           // pointer to the head of fields list
+    struct Typetable *next;             // pointer to the next type table entry
     struct Classtable *Ctype;
 };
 
 struct Gsymbol{
-    char *name;                         //name of the variable or function
-    struct Typetable *type;             //type of the variable:(Integer / String)
-    int size;                           //size of an array
-    int binding;                        //static binding of global variables
-    struct Paramstruct *paramlist;      //pointer to the head of the formal parameter list
-    int flabel;                         //a label for identifying the starting address of a function's code
-    struct Gsymbol *next;               //points to the next Global Symbol Table entry
+    char *name;                         // name of the variable or function
+    struct Typetable *type;             // type of the variable:(Integer / String)
+    int size;                           // size of an array
+    int binding;                        // static binding of global variables
+    struct Paramstruct *paramlist;      // pointer to the head of the formal parameter list
+    int flabel;                         // A label for identifying the starting addr of the function
+    struct Gsymbol *next;               // points to the next Global Symbol Table entry
 }; 
 
 struct Lsymbol{
-    char *name;                 //name of the variable
-    struct Typetable* type;     //pointer to the Typetable entry of variable type
-    int binding;                //stores memory address allocated to the variable
-    struct Lsymbol *next;       //points to the next Local Symbol Table entry
+    char *name;                         // name of the variable
+    struct Typetable* type;             // pointer to the Typetable entry of variable type
+    int binding;                        // stores memory address allocated to the variable
+    struct Lsymbol *next;               // points to the next Local Symbol Table entry
 };
 
 struct Fieldlist{
-  char *name;              //name of the field
-  int fieldIndex;          //the position of the field in the field list
-  struct Typetable *type;  //pointer to type table entry of the field's type
-  struct Fieldlist *next;  //pointer to the next field
+  char *name;                           // name of the field
+  int fieldIndex;                       // the position of the field in the field list
+  struct Typetable *type;               // pointer to type table entry of the field's type
+  struct Fieldlist *next;               // pointer to the next field
 };
 
 struct Paramstruct{
-    char *name;                     //stores the name of the parameter
-    struct Typetable* type;                       //pointer to type table entry of parameter type
-    int checked;                    //pointer to type table entry of parameter type
-    struct Paramstruct *next;       //pointer to the next parameter
+    char *name;                         // stores the name of the parameter
+    struct Typetable* type;             // pointer to type table entry of parameter type
+    int checked;                        // pointer to type table entry of parameter type
+    struct Paramstruct *next;           // pointer to the next parameter
 };
 
 struct MemberFunclist {
-    char * methodName;                         //name of the member function in the class
-    struct Typetable * type;             //pointer to typetable
-    struct Paramstruct * paramlist;      //pointer to the head of the formal parameter list
-    int funcposition;                   //position of the function in the class table
-    int flabel;                         //A label for identifying the starting address of the function's code in the memory
-    struct MemberFunclist *next;        //pointer to next Memberfunclist entry
+    char * methodName;                  // name of the member function in the class
+    struct Typetable * type;            // pointer to typetable
+    struct Paramstruct * paramlist;     // pointer to the head of the formal parameter list
+    int funcposition;                   // position of the function in the class table
+    int flabel;                         // A label for identifying the starting addr of the function
+    struct MemberFunclist *next;        // pointer to next Memberfunclist entry
 };
 
 struct Classtable {
-    char * className;                         //name of the class
-    struct Fieldlist *memberField;      //pointer to Fieldlist
-    struct MemberFunclist *vFuncptr;    //pointer to Memberfunclist
-    struct Classtable *parentPtr;       //pointer to the parent's class table
-    int classIndex;                    //position of the class in the virtual function table
-    int fieldCount;                     //count of fields
-    int methodCount;                    //count of methods
-    struct Classtable *next;            //pointer to next class table entry
+    char * className;                   // name of the class
+    struct Fieldlist *memberField;      // pointer to Fieldlist
+    struct MemberFunclist *vFuncptr;    // pointer to Memberfunclist
+    struct Classtable *parentPtr;       // pointer to the parent's class table
+    int classIndex;                     // position of the class in the virtual function table
+    int fieldCount;                     // count of fields
+    int methodCount;                    // count of methods
+    struct Classtable *next;            // pointer to next class table entry
+};
+
+struct Context{
+    int * jumpLabels;
+    int mainFunc;
+    int localvars;
 };
 
 
@@ -220,9 +228,9 @@ struct Typetable* make_pointer(struct Typetable* type);
 struct Typetable* setUserDefType(struct tnode* t);
 // Printing the entire type table
 void printTypeTable();
-
 // Making a field list from the parameters
 struct Fieldlist* fetchFieldList(struct tnode * t);
+// Searching for a specific field
 struct Fieldlist * FLookup(struct Typetable* type, char * name);
 
 /* ---------------------------------------------------------------------------------------------- */
@@ -246,7 +254,9 @@ struct Typetable* findType(struct tnode * t);
 
 /* ---------------------------------------------------------------------------------------------- */
 /* ARG LIST */
+// Fetch the argument list from the tnode
 struct Paramstruct* fetchArgList(struct tnode * t);
+// Verify the argument matches or not
 int verifyArgTypes(struct Paramstruct* argList, struct Paramstruct* paramList );
 
 /* ---------------------------------------------------------------------------------------------- */
@@ -291,6 +301,7 @@ void printClassTable();
 struct Fieldlist * addParentFieldList(struct Classtable * CTEntry);
 // Adding the parent methods to the child if inherited
 struct MemberFunclist * addParentMethods(struct Classtable * CTEntry);
+
 /* ---------------------------------------------------------------------------------------------- */
 /* Printing Tree Nodes */
 void printTree(struct tnode* t, struct tnode* p, int depth);
@@ -299,5 +310,6 @@ void printX(char * s, int X, int val, int type);
 char * printType( struct Typetable* t );
 char * printClass( struct Classtable* t );
 
+/* ---------------------------------------------------------------------------------------------- */
 // Codegen Function
 void compile(struct tnode * t);

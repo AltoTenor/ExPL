@@ -1,9 +1,3 @@
-struct Context{
-    int * jumpLabels;
-    int mainFunc;
-    int localvars;
-};
-
 // Generates the target code for the given syntax tree
 int codeGen( struct tnode *t , struct Context * c);
 

@@ -1,47 +1,116 @@
 class 
-fact {
+BankAccount {
     decl
-        int x;
-        int a(str mssg);
+        str accHolder;
+        int accNum;
+        int balance;
+        int setAccDetails(str holder, int accNo, int initBal);
+        int deposit(int amount);
+        int withdraw(int amount);
+        int displayBalance();
     enddecl
 
-    int a(str mssg) {
+    int setAccDetails(str holder, int accNo, int initBal){
         begin
-            write("Parent: ");
-            write(mssg);
-            return 1;
+            self.accHolder = holder;
+            self.accNum = accNo;
+            self.balance = initBal;
+        end
+    }
+    int deposit(int amount){
+        begin
+            self.balance = self.balance + amount;
+            write("Deposited: ");
+            write(amount);
+        end
+    }
+    int withdraw(int amount){
+        begin
+            if (amount <= self.balance) then
+                self.balance = self.balance - amount;
+                write("Withdrawn: ");
+                write(amount);
+            else
+                write("Insufficient balance!");
+            endif;
+        end
+    }
+    int displayBalance(){
+        begin
+            write("Acc Holder: ");
+            write(self.accHolder);
+            write("Acc Number: ");
+            write(self.accNum);
+            write("Cur Balance: ");
+            write(self.balance);
         end
     }
 }
-fact1 extends fact {
+SavingsAccount extends BankAccount {
     decl
-        int y;
-        int a(str mssg);
+        int intRate;
+        int setIntRate(int rate);
+        int addInterest();
     enddecl
-
-    int a(str mssg) {
+    int setIntRate(int rate){
         begin
-            write("Child: ");
-            write(mssg);
-            return 1;
+            self.intRate = rate;
+        end
+    }
+    int addInterest(){
+        decl
+            int interest;
+            int x;
+        enddecl
+        begin
+            interest = self.balance * self.intRate / 100;
+            x = self.deposit(interest);
+            write("Interest Added: ");
+            write(interest);
         end
     }
 }
 endclass
 
+decl 
+    BankAccount acc;
+    SavingsAccount savAcc;
+enddecl
+
 int main() {
     decl
-        int x;
-        fact obj;
+        str holder;
+        int accNo, x;
+        int initBal, depAmt, wdAmt, intRate;
     enddecl
+
     begin
+        write("Enter info:");
+        read(holder);
+        read(accNo);
+        read(initBal);
+
         x = initialize();
-        obj = new(fact1);
-        x = obj.a("13");
-        x = delete(obj);
-        if ( obj == null ) then
-            write("Deleted");
-        endif;
-        return 1;
+        savAcc = new(SavingsAccount);
+
+        x = savAcc.setAccDetails(holder, accNo, initBal);
+
+        write("Enter Deposit Amount:");
+        read(depAmt);
+        x = savAcc.deposit(depAmt);
+
+        write("Withdraw Amt:");
+        read(wdAmt);
+        x = savAcc.withdraw(wdAmt);
+
+        write("Int Rate:");
+        read(intRate);
+        x = savAcc.setIntRate(intRate);
+        x = savAcc.addInterest();
+
+        write("Final Details:");
+        x = savAcc.displayBalance();
+
+        return 0;
     end
 }

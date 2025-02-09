@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stddef.h>
 #include "analyser.h"
+#include "codegen.h"
 
 struct Gsymbol * symbolTable;
 struct Typetable * typeTable;
@@ -28,7 +29,7 @@ struct tnode* createTree(   char* name,
     temp->Gentry = Gentry;
 
     temp->type = TLookup(type);
-    if ( nodetype==typeNode && temp->type == NULL ){
+    if ( nodetype==NODE_TYPE && temp->type == NULL ){
         printf("Invalid Type Used: %s\n", type);
         exit(1);
     }
@@ -36,19 +37,19 @@ struct tnode* createTree(   char* name,
     temp->Ctype = NULL;
     temp->nodetype = nodetype;
     switch (nodetype){
-        case numNode:       temp->value.intval = c->intval;
+        case NODE_CONST_NUM:       temp->value.intval = c->intval;
                             break;
 
-        case strConstNode:  temp->value.strval = (char*)malloc(sizeof(char)*30); 
+        case NODE_CONST_STR:  temp->value.strval = (char*)malloc(sizeof(char)*30); 
                             strcpy(temp->value.strval, c->strval);
                             break;
 
-        case idNode:        temp->name = (char*)malloc(20*sizeof(char));
+        case NODE_ID:        temp->name = (char*)malloc(20*sizeof(char));
                             strcpy(temp->name, name);
                             break;
 
                             break;
-        case FDefNode:{      //Checks Function Decl match with Function Def
+        case NODE_FDEF:{      //Checks Function Decl match with Function Def
                             struct Gsymbol * funcEntry = GLookup(children[1]->name);
                             if ( strcmp(children[1]->name, "main")!=0 ){
                                 if ( funcEntry == NULL  ) {
@@ -69,13 +70,15 @@ struct tnode* createTree(   char* name,
 
                             // Make LST accessible to all Body and skip the Local Declarations
                             if ( strcmp(children[1]->name, "main")!=0 )
-                                assignVarTypes(children[3]->children[1], Lentry, funcEntry->type, NULL);
+                                assignVarTypes( children[3]->children[1], 
+                                                Lentry, funcEntry->type, NULL);
                             else
-                                assignVarTypes(children[3]->children[1], Lentry, TLookup("int"), NULL);
+                                assignVarTypes(children[3]->children[1], 
+                                                Lentry, TLookup("int"), NULL);
                             break;
                         }
         
-        case classDefNode:{ // Make the Class Table Entry
+        case NODE_CLASS_DEF:{ // Make the Class Table Entry
                             struct Classtable * cur = CLookup(children[0]->name);
                             
                             // Setting up members
@@ -115,7 +118,7 @@ struct tnode* createTree(   char* name,
                             break;
                         }
         
-        case CNameNode: {   // Setting up parent class if present
+        case NODE_CNAME: {   // Setting up parent class if present
                             if ( children[1] ){
                                 struct Classtable * p = CLookup(children[1]->name);
                                 if ( p == NULL ){
@@ -179,32 +182,32 @@ struct Gsymbol *GLookup(char * name){
 }
 
 void setGTypes(struct tnode* t, struct Typetable * type, struct Gsymbol* paramHead){
-    if ( t->nodetype == connectorNode ){
+    if ( t->nodetype == NODE_CONNECTOR ){
         setGTypes( t -> children[0], type, paramHead);
         setGTypes( t -> children[1], type, paramHead);
     }
-    else if( t->nodetype == idNode ){
+    else if( t->nodetype == NODE_ID ){
         // For Dynamic Allocation we only storing the pointer
         if ( type->generalType == USER_DEF ) GInstall( t->name, type, 1, -1);
         // For Static ALlocation we need space = size
         else GInstall( t->name, type, type->size, -1);
     }
-    else if( t->nodetype == ptrNode ){
+    else if( t->nodetype == NODE_PTR ){
         GInstall( t->children[0]->name, make_pointer(type), 1, -1);
     }
-    else if( t->nodetype == arrTypeNode ){
+    else if( t->nodetype == NODE_ARR_TYPE ){
         // No matter static/dynamic we store the size
         GInstall( t->children[0]->name, type, t->children[1]->value.intval, -1);
     }
-    else if( t->nodetype == funcTypeGDeclNode ){
+    else if( t->nodetype == NODE_GDECL_FUNC ){
         GInstall( t->children[0]->name, type, 0, globalFlabel++);
         if ( t->children[1] ) setGTypes( t -> children[1], type, GLookup(t->children[0]->name));
     }
-    else if( t->nodetype == funcPtrTypeGDeclNode ){
+    else if( t->nodetype == NODE_GDECL_PTRFUNC ){
         GInstall( t->children[0]->name, make_pointer(type), 0, globalFlabel++);
         if ( t->children[1] ) setGTypes( t -> children[1], type, GLookup(t->children[0]->name));
     }
-    else if( t->nodetype == paramNode ){
+    else if( t->nodetype == NODE_PARAM ){
         struct Paramstruct * param = (struct Paramstruct*)malloc(sizeof(struct Paramstruct));
         param->name = (char*)malloc(sizeof(char)*20);
         strcpy(param->name, t->children[1]->name);
@@ -221,7 +224,7 @@ void setGTypes(struct tnode* t, struct Typetable * type, struct Gsymbol* paramHe
 
 void printGSymbolTable(){
     struct Gsymbol * g = symbolTable;
-    printf("\nGlobal Symbol Table: \n");
+    printf("Global Symbol Table: \n");
     printf("| name     | type   | size | binding | flabel | paramlist\n");
     printf("-------------------------------------------------------\n");
     while(g){
@@ -238,6 +241,7 @@ void printGSymbolTable(){
         printf("\n");
         g = g->next;
     }
+    printf("\n");
 }
 
 // ------------------------LOCAL SYMBOL TABLE-------------------------------------------------------
@@ -275,14 +279,14 @@ struct Lsymbol * LLookup(char * name, struct Lsymbol * head){
 }
 
 void setLTypes(struct Typetable* type, struct tnode * t, struct tnode* head){
-    if ( t->nodetype == connectorNode ){
+    if ( t->nodetype == NODE_CONNECTOR ){
         setLTypes( type, t -> children[0], head);
         setLTypes( type, t -> children[1], head);
     }
-    else if ( t->nodetype == idNode ){
+    else if ( t->nodetype == NODE_ID ){
         struct Lsymbol * l = LInstall( t->name, type, head );
     }
-    else if ( t->nodetype == ptrNode ){
+    else if ( t->nodetype == NODE_PTR ){
         LInstall( t->children[0]->name, make_pointer(type), head);
         t->children[0]->Lentry = LLookup(t->children[0]->name, head->Lentry);
     }
@@ -403,7 +407,7 @@ struct Typetable* setUserDefType(struct tnode* t){
 
 void printTypeTable(){
     struct Typetable* temp = typeTable;
-    printf("TypeTable \n");
+    printf("Global TypeTable \n");
     printf("| TypeName | Size | FieldList \n");
     while (temp){
         printX(temp->name, 11, -1, 1);
@@ -421,12 +425,11 @@ void printTypeTable(){
         temp = temp->next; 
     }
     printf("\n");
-    printf("\n");
 }
 
 struct Fieldlist * fetchFieldList(struct tnode * t){
     if ( t == NULL ) return NULL;
-    if ( t->nodetype == paramNode ){
+    if ( t->nodetype == NODE_PARAM ){
         struct Fieldlist * f = (struct Fieldlist * )malloc(sizeof(struct Fieldlist));
         f->name = (char*)malloc(sizeof(char)*20);
         strcpy(f->name, t->children[1]->name);
@@ -492,13 +495,13 @@ void initTuple(struct tnode **children, struct tnode * LSThead){
 }
 
 void setTupleIDinGST(struct tnode * t, struct Typetable* type){
-    if ( t->nodetype == idNode ){
+    if ( t->nodetype == NODE_ID ){
         GInstall(t->name, type, type->size, -1);
     }
-    else if ( t->nodetype == ptrNode ){
+    else if ( t->nodetype == NODE_PTR ){
         GInstall(t->children[0]->name, make_pointer(type), 1, -1);
     }
-    else if ( t->nodetype == connectorNode ){
+    else if ( t->nodetype == NODE_CONNECTOR ){
         setTupleIDinGST(t->children[0], type);
         setTupleIDinGST(t->children[1], type);
     }
@@ -509,13 +512,13 @@ void setTupleIDinGST(struct tnode * t, struct Typetable* type){
 }
 
 void setTupleIDinLST(struct tnode * t, struct Typetable* type, struct tnode * LSThead){
-    if ( t->nodetype == idNode ){
+    if ( t->nodetype == NODE_ID ){
         LInstall(t->name, type, LSThead);
     }
-    else if ( t->nodetype == ptrNode ){
+    else if ( t->nodetype == NODE_PTR ){
         LInstall(t->children[0]->name, make_pointer(type), LSThead);
     }
-    else if ( t->nodetype == connectorNode ){
+    else if ( t->nodetype == NODE_CONNECTOR ){
         setTupleIDinLST(t->children[0], type, LSThead);
         setTupleIDinLST(t->children[1], type, LSThead);
     }
@@ -553,13 +556,13 @@ void assignVarTypes(struct tnode* t,
                     struct Classtable * classEntry ){
     // Anything to be done while going down
     // Recursive Calls
-    if ( t->nodetype == memberNode ) assignVarTypes(t->children[0], Lentry, retType, classEntry);
-    else if (t->nodetype != typeNode) for (int i = 0; i < t->childcount; i++ ){
+    if ( t->nodetype == NODE_MEMBER ) assignVarTypes(t->children[0], Lentry, retType, classEntry);
+    else if (t->nodetype != NODE_TYPE) for (int i = 0; i < t->childcount; i++ ){
             if (t->children[i]) assignVarTypes(t->children[i], Lentry, retType, classEntry);
     }
     // Doing checks while coming up 
     switch (t->nodetype){
-        case idNode:{       struct Lsymbol * t1 = LLookup( t->name , Lentry );
+        case NODE_ID:{       struct Lsymbol * t1 = LLookup( t->name , Lentry );
                             struct Gsymbol * t2 = GLookup( t->name );
                             // printLSymbolTable(Lentry);
                             // printf("%s\n",t->name);
@@ -580,7 +583,7 @@ void assignVarTypes(struct tnode* t,
                             break; 
                             }
         
-        case arrTypeNode:   // Checking Index Type
+        case NODE_ARR_TYPE:   // Checking Index Type
                             if ( t->children[1]->type !=  TLookup("int") ){
                                 printf("Indexing non-int address");
                                 exit(1);
@@ -590,7 +593,7 @@ void assignVarTypes(struct tnode* t,
                             // t->Gentry = t->children[0]->Gentry;
                             break;
                             
-        case assignNode:{   int op1 = t->children[0]->type != t->children[1]->type;
+        case NODE_ASSIGN:{   int op1 = t->children[0]->type != t->children[1]->type;
                             // Allow User Defined types to store NULL
                             int op2 = t->children[1]->type == TLookup("null") 
                                     && t->children[0]->type->generalType == USER_DEF;
@@ -617,23 +620,24 @@ void assignVarTypes(struct tnode* t,
                             }
                             break;}
 
-        case derefOpNode:   if ( t->children[0]->type->generalType != POINTER ){
-                                printf("Dereferencing non pointer: %d\n",t->children[0]->type->generalType);
+        case NODE_DEREF:   if ( t->children[0]->type->generalType != POINTER ){
+                                printf("Dereferencing non pointer: %d\n",
+                                        t->children[0]->type->generalType);
                                 exit(1);
                             }
                             t->type = t->children[0]->type->fields->type;
                             break;
         
-        case exprNode:      t->type = t->children[0]->type;
+        case NODE_EXPR:      t->type = t->children[0]->type;
                             t->Ctype = t->children[0]->Ctype;
                             break;
 
         
-        case addrNode:{     t->type = make_pointer(t->children[0]->type);
+        case NODE_ADDR:{     t->type = make_pointer(t->children[0]->type);
                             break;}
         
-        case addNode:   
-        case subNode:{      int op1 = t->children[0]->type->generalType == POINTER 
+        case NODE_ADD:   
+        case NODE_SUB:{      int op1 = t->children[0]->type->generalType == POINTER 
                                 && t->children[1]->type == TLookup("int");
                             int op2 = t->children[1]->type->generalType == POINTER 
                                 && t->children[0]->type == TLookup("int");
@@ -655,8 +659,8 @@ void assignVarTypes(struct tnode* t,
                             }
                             break;
         
-        case mulNode:   
-        case divNode:       if (t->children[0]->type != TLookup("int")
+        case NODE_MUL:   
+        case NODE_DIV:       if (t->children[0]->type != TLookup("int")
                                 || t->children[1]->type != TLookup("int")){
                                 printf("Operands mismatch! \n");
                                 printf("Only INTs allowed for MUL and DIV! \n");
@@ -664,12 +668,12 @@ void assignVarTypes(struct tnode* t,
                                 }
                             break;   
 
-        case geNode:
-        case leNode:
-        case ltNode:
-        case gtNode:
-        case eqNode:
-        case neNode:{       int op1 = t->children[0]->type == t->children[1]->type;
+        case NODE_GE:
+        case NODE_LE:
+        case NODE_LT:
+        case NODE_GT:
+        case NODE_EQ:
+        case NODE_NE:{       int op1 = t->children[0]->type == t->children[1]->type;
                             int op2a  = t->children[0]->type->generalType == USER_DEF 
                                     && t->children[1]->type == TLookup("null"); 
                             int op2b  = t->children[1]->type->generalType == USER_DEF 
@@ -686,29 +690,29 @@ void assignVarTypes(struct tnode* t,
                             }    
                             break;}
         
-        case andNode:
-        case orNode:        if ( t->children[0]->type != t->children[1]->type 
+        case NODE_AND:
+        case NODE_OR:        if ( t->children[0]->type != t->children[1]->type 
                                 ||  t->children[0]->type != TLookup("boolean") ){
                                 printf("Only Booleans allowed for AND/OR ops\n");
                                 exit(1);
                             }    
                             break;
         
-        case ifNode:    
-        case whileNode:     if ( t->children[0]->type !=  TLookup("boolean") ){
+        case NODE_IF:    
+        case NODE_WHILE:     if ( t->children[0]->type !=  TLookup("boolean") ){
                                 printf("If / Loop Condition Not Boolean");
                                 exit(1);
                             }
                             break;
         
-        case dowhileNode:
-        case repeatNode:    if ( t->children[1]->type !=  TLookup("boolean") ){
+        case NODE_DOWHILE:
+        case NODE_REPEAT:    if ( t->children[1]->type !=  TLookup("boolean") ){
                                 printf("Loop Condition Not Boolean");
                                 exit(1);
                             }
                             break;
         
-        case returnNode:    if (t->children[0]->type != retType){
+        case NODE_RETURN:    if (t->children[0]->type != retType){
                                 printf("Return Type Does not match\n");
                                 printf("Expected %s, returned %s\n", 
                                         retType->name, 
@@ -717,7 +721,7 @@ void assignVarTypes(struct tnode* t,
                             }
                             break;
         
-        case funcCallNode:{ // Assign Type from GST or from child node ( if class )
+        case NODE_FUNC_CALL:{ // Assign Type from GST or from child node ( if class )
                             if ( t->children[0]->Ctype ) t->type = t->children[0]->type;
                             else if (t->children[0]->Gentry) t->type = t->children[0]->Gentry->type;
                             else { printf("Incorrect Function Call Node\n"); exit(1); }
@@ -750,11 +754,11 @@ void assignVarTypes(struct tnode* t,
                             break; 
                         }
         
-        case memberNode:{   /* To handle - self.x or self.func()
-                                If leftside is selfNode then assign type directly if node is member
+        case NODE_MEMBER:{   /* To handle - self.x or self.func()
+                                If leftside is NODE_SELF then assign type directly if node is member
                                 Else if node refers to function then assign return type and Class
                                 to the node */
-                            if (t->children[0]->nodetype == selfNode) {
+                            if (t->children[0]->nodetype == NODE_SELF) {
                                 if ( classEntry == NULL ){
                                     printf("Keyword \"self\" used outside class definition\n");
                                     exit(1);   
@@ -805,25 +809,26 @@ void assignVarTypes(struct tnode* t,
                             }
                         }
         
-        case freeNode: {    if ( t->children[0]->type->generalType != USER_DEF ){
-                                printf("Freeing a non user defined type: %s\n",t->children[0]->name);
+        case NODE_FREE: {    if ( t->children[0]->type->generalType != USER_DEF ){
+                                printf("Freeing a non user defined type: %s\n",
+                                        t->children[0]->name);
                                 exit(1);
                             }
                             break;
         }
 
-        case newNode:   {   t->Ctype = t->children[0]->type->Ctype;
+        case NODE_NEW:   {   t->Ctype = t->children[0]->type->Ctype;
                             t->type = t->children[0]->type;
                             break;
                         }
-        case selfNode:  {   struct Lsymbol * t1 = LLookup( "self" , Lentry );
+        case NODE_SELF:  {   struct Lsymbol * t1 = LLookup( "self" , Lentry );
                             t->Lentry = t1;
                             t->type = t1->type;
                             t->Ctype = t1->type->Ctype;
                             break;
                         }
         
-        case deleteNode:{   if ( t->children[0]->type->Ctype == NULL ){
+        case NODE_DELETE:{   if ( t->children[0]->type->Ctype == NULL ){
                                 printf("Cannot delete variable: %s\n", t->children[0]->name);
                                 exit(1);
                             }
@@ -913,11 +918,11 @@ struct Paramstruct* searchParamList(struct Paramstruct* head, char* name){
 }
 
 void compareParamList(struct tnode * t, struct Paramstruct *paramlist){
-    if ( t -> nodetype == connectorNode ) {
+    if ( t -> nodetype == NODE_CONNECTOR ) {
         for ( int i=0; i< t->childcount; i++ )
             compareParamList( t->children[i], paramlist );
     }
-    if ( t -> nodetype == paramNode ) {
+    if ( t -> nodetype == NODE_PARAM ) {
         struct Paramstruct* entry = searchParamList( paramlist, t->children[1]->name );
         if ( entry == NULL ){
             printf("Function Parameter not found: %s\n", t->children[1]->name);
@@ -964,7 +969,7 @@ struct Lsymbol* addParamListToLsymbolTable(struct Paramstruct * pl, struct Lsymb
     return head;
 }
 
-// ----------------------------CLASS TABLE-------------------------------------------------------------
+// ----------------------------CLASS TABLE----------------------------------------------------------
 struct Classtable* CInstall(char *name, struct Classtable * parent){
     struct Classtable* temp = (struct Classtable*)malloc(sizeof(struct Classtable));
 
@@ -1007,7 +1012,7 @@ struct Classtable* CLookup(char *name){
 }
 
 struct MemberFunclist * constructMethodList(struct tnode * t){
-    if ( t->nodetype == connectorNode ){
+    if ( t->nodetype == NODE_CONNECTOR ){
         struct MemberFunclist * head = NULL;
         struct MemberFunclist * tail = NULL;
         for (int i=0;i<t->childcount;i++){ 
@@ -1023,7 +1028,7 @@ struct MemberFunclist * constructMethodList(struct tnode * t){
         }
         return head;
     }
-    else if (t->nodetype == MDeclNode ){
+    else if (t->nodetype == NODE_MDECL ){
         struct Paramstruct* paramlist = constructMethodParamList(t->children[2]);
         struct Paramstruct* i = paramlist;
 
@@ -1048,7 +1053,7 @@ struct MemberFunclist * constructMethodList(struct tnode * t){
 
 struct Paramstruct* constructMethodParamList(struct tnode* t){
     if ( t == NULL ) return NULL;
-    if ( t->nodetype == connectorNode ){
+    if ( t->nodetype == NODE_CONNECTOR ){
         struct Paramstruct * head = NULL;
         struct Paramstruct * tail = NULL;
         for (int i=0;i<t->childcount;i++){ 
@@ -1061,7 +1066,7 @@ struct Paramstruct* constructMethodParamList(struct tnode* t){
         }
         return head;
     }
-    else if (t->nodetype == paramNode ){
+    else if (t->nodetype == NODE_PARAM ){
         struct Paramstruct* temp = (struct Paramstruct*)malloc(sizeof(struct Paramstruct));
         temp->name = (char*)malloc(sizeof(char)*20);
         strcpy(temp->name, t->children[1]->name);
@@ -1109,10 +1114,10 @@ struct MemberFunclist * MInstall(char * methodName,
 
 void checkMDef(struct tnode* t, struct Classtable* CTEntry){
     // printf("%d\n", t->nodetype);
-    if ( t->nodetype == connectorNode ){
+    if ( t->nodetype == NODE_CONNECTOR ){
         for (int i=0;i<t->childcount;i++) checkMDef(t->children[i], CTEntry);
     }
-    else if ( t->nodetype == MDefNode ){
+    else if ( t->nodetype == NODE_MDEF ){
         struct MemberFunclist * method = MethodLookup(t->children[1]->name, CTEntry);
         // Checking if function is declared
         if ( method == NULL ) {
@@ -1150,7 +1155,7 @@ void checkMDef(struct tnode* t, struct Classtable* CTEntry){
 
         // Make LST accessible to all Body and skip the Local Declarations
         assignVarTypes(t->children[3]->children[1], t->Lentry, t->children[0]->type, CTEntry);
-        // Adding class entry to MDefNode
+        // Adding class entry to NODE_MDEF
         t->Ctype = CTEntry;
 
         printf("LST for Class: %s \nFunction: %s\n",CTEntry->className, t->children[1]->name);
@@ -1229,7 +1234,8 @@ struct MemberFunclist * addParentMethods(struct Classtable * CTEntry){
     
     // Copying parent member field into a new member field
     while ( parentMet ){
-        struct MemberFunclist * temp = (struct MemberFunclist * )malloc(sizeof(struct MemberFunclist));
+        struct MemberFunclist * temp
+            = (struct MemberFunclist * )malloc(sizeof(struct MemberFunclist));
         temp->methodName = (char*)malloc(sizeof(char)*20);
 
         strcpy(temp->methodName, parentMet->methodName);
@@ -1321,7 +1327,6 @@ void printClassTable(){
         temp = temp->next; 
     }
     printf("\n");
-    printf("\n");
 }
 
 // ----------------------------PRINTING-------------------------------------------------------------
@@ -1348,64 +1353,64 @@ void printTree(struct tnode* t, struct tnode* p, int depth){
 
 char * printNode( struct tnode* t ){
     switch ( t->nodetype ){
-        case readNode: return "Read";
-        case writeNode: return "Write";
-        case connectorNode: return "Connector";
-        case assignNode: return "Assign";
-        case addNode: return "Add";
-        case newNode: return "new";
-        case deleteNode: return "delete";
-        case subNode: return "Sub";
-        case divNode: return "Div";
-        case mulNode: return "Mul";
-        case modNode: return "Mod";
-        case CNameNode: return "CName";
-        case selfNode: return "self";
-        case geNode: return "ge";
-        case leNode: return "le";
-        case gtNode: return "gt";
-        case ltNode: return "lt";
-        case freeNode: return "free";
-        case eqNode: return "eq";
-        case neNode: return "ne";
-        case ifNode: return "if";
-        case classDefNode: return "classDefNode";
-        case MDeclNode: return "MDeclNode";
-        case MDefNode: return "MDefNode";
-        case initNode: return "initNode";
-        case allocNode: return "allocNode";
-        case nullNode: return "nullNode";
-        case ptrNode: return "ptrNode";
-        case whileNode: return "while";
-        case dowhileNode: return "dowhile";
-        case repeatNode: return "repeat";
-        case breakNode: return "break";
-        case contNode: return "continue";
-        case typeDefNode: return "typeDef";
-        case fieldDeclNode: return "fieldDecl";
-        case typeNode: return "typeNode";
-        case arrTypeNode: return "arrType";
-        case exprNode: return "exprNode";
-        case brkpNode: return "BRKP";
-        case funcTypeGDeclNode: return "funcTypeGDeclNode";
-        case paramNode: return "paramNode";
-        case GDeclNode: return "GDeclNode";
-        case rootNode: return "rootNode";
-        case FDefNode: return "FDefNode";
-        case memberNode: return "memberNode";
-        case LDeclNode: return "LDeclNode";
-        case returnNode: return "returnNode";
-        case FBodyNode: return "FBodyNode";
-        case funcCallNode: return "funcCallNode";
-        case argNode: return "argNode";
-        case derefOpNode: return "derefOpNode";
-        case orNode: return "orNode";
-        case andNode: return "andNode";
-        case addrNode: return "addrNode";
-        case tupleNode: return "tupleNode";
-        case strConstNode: printf("%s : ", t->value.strval); return "strConst";
-        case numNode: printf("%d : ", t->value.intval); return "Num";
-        case idNode: printf("%s : ", t->name); return "Id";
+        case NODE_READ: return "Read";
+        case NODE_WRITE: return "Write";
+        case NODE_CONNECTOR: return "Connector";
+        case NODE_ASSIGN: return "Assign";
+        case NODE_ADD: return "Add";
+        case NODE_NEW: return "new";
+        case NODE_DELETE: return "delete";
+        case NODE_SUB: return "Sub";
+        case NODE_DIV: return "Div";
+        case NODE_MUL: return "Mul";
+        case NODE_MOD: return "Mod";
+        case NODE_CNAME: return "CName";
+        case NODE_SELF: return "self";
+        case NODE_GE: return "ge";
+        case NODE_LE: return "le";
+        case NODE_GT: return "gt";
+        case NODE_LT: return "lt";
+        case NODE_FREE: return "free";
+        case NODE_EQ: return "eq";
+        case NODE_NE: return "ne";
+        case NODE_IF: return "if";
+        case NODE_CLASS_DEF: return "NODE_CLASS_DEF";
+        case NODE_MDECL: return "NODE_MDECL";
+        case NODE_MDEF: return "NODE_MDEF";
+        case NODE_INIT: return "NODE_INIT";
+        case NODE_ALLOC: return "NODE_ALLOC";
+        case NODE_NULL: return "NODE_NULL";
+        case NODE_PTR: return "NODE_PTR";
+        case NODE_WHILE: return "while";
+        case NODE_DOWHILE: return "dowhile";
+        case NODE_REPEAT: return "repeat";
+        case NODE_BREAK: return "break";
+        case NODE_CONTINUE: return "continue";
+        case NODE_TYPEDEF: return "typeDef";
+        case NODE_FIELD_DECL: return "fieldDecl";
+        case NODE_TYPE: return "NODE_TYPE";
+        case NODE_ARR_TYPE: return "arrType";
+        case NODE_EXPR: return "NODE_EXPR";
+        case NODE_BRKP: return "BRKP";
+        case NODE_GDECL_FUNC: return "NODE_GDECL_FUNC";
+        case NODE_PARAM: return "NODE_PARAM";
+        case NODE_GDECL: return "NODE_GDECL";
+        case NODE_ROOT: return "NODE_ROOT";
+        case NODE_FDEF: return "NODE_FDEF";
+        case NODE_MEMBER: return "NODE_MEMBER";
+        case NODE_LDECL: return "NODE_LDECL";
+        case NODE_RETURN: return "NODE_RETURN";
+        case NODE_FBODY: return "NODE_FBODY";
+        case NODE_FUNC_CALL: return "NODE_FUNC_CALL";
+        case NODE_ARG: return "NODE_ARG";
+        case NODE_DEREF: return "NODE_DEREF";
+        case NODE_OR: return "NODE_OR";
+        case NODE_AND: return "NODE_AND";
+        case NODE_ADDR: return "NODE_ADDR";
+        case NODE_TUPLE: return "NODE_TUPLE";
+        case NODE_CONST_STR: printf("%s : ", t->value.strval); return "strConst";
+        case NODE_CONST_NUM: printf("%d : ", t->value.intval); return "Num";
+        case NODE_ID: printf("%s : ", t->name); return "Id";
         return "Uninitialized X";
     }
 }
@@ -1433,5 +1438,13 @@ void printX(char * s, int X, int val, int type){
 // -------------------------------CODEGENS----------------------------------------------------------
 
 void compile(struct tnode * t){
-
+    initialize();
+    struct Context * c = (struct Context *)malloc(sizeof(struct Context));
+    c->jumpLabels = (int *)malloc(sizeof(int)*2);
+    c->mainFunc = 0;
+    codeGen(t->children[1], c);
+    codeGen(t->children[3], c);
+    c->mainFunc = 1;
+    codeGen(t->children[4], c);
+    return;
 }

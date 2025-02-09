@@ -34,6 +34,7 @@ void initialize(){
     while( CEntry ){
         int index = 0;
         struct MemberFunclist * method = CEntry->vFuncptr;
+        // Fetching the base of the class
         int classBase = 4096 + CEntry->classIndex*8;
         while(method){
             fprintf(fp, "MOV [%d], F%d\n", classBase+(index++), method->flabel);
@@ -177,6 +178,7 @@ void initialize(){
 
 }
 
+/* Finding if a parameter exists or not */
 int findParam(struct Paramstruct * p, char * name){
     while (p){
         if ( strcmp(p->name, name) == 0 ) return 1;
@@ -184,7 +186,6 @@ int findParam(struct Paramstruct * p, char * name){
     }
     return 0;
 }
-
 
 /* Code Generation to XSM */
 int codeGen( struct tnode *t , struct Context * c) {
@@ -195,32 +196,38 @@ int codeGen( struct tnode *t , struct Context * c) {
         if( (t->nodetype & 1) == 0 ){
             switch( t->nodetype ){
 
-                case addrNode:
-                case connectorNode: {
+                // Propagate call to children
+                case NODE_ADDR:
+                case NODE_CONNECTOR: {
                     for (int x=0;x<t->childcount;x++)
                         i = codeGen(t->children[x], c);
                     break;
                 }
-
-                case classDefNode: {
+                case NODE_CLASS_DEF: {
                     i = codeGen(t->children[3], c);
                     break;
                 }
-                
-                case MDefNode: {
+                case NODE_FBODY: {
+                    codeGen(t->children[1], c);
+                    break;
+                }
+
+                // Method Definition for a class
+                case NODE_MDEF: {
+                    // Find label for the function
                     struct MemberFunclist * method 
                         = MethodLookup(t->children[1]->name, t->Ctype);
                     fprintf(fp, "F%d:\n", method->flabel);
                     fprintf(fp, "PUSH BP\n");
                     fprintf(fp, "MOV BP, SP\n");
                     
-                    // Arguments getting pushed in 
+                    // Arguments & Parameters getting pushed in 
                     struct Lsymbol * l = t->Lentry;
                     int paramnum = 0;
                     int inc = 0;
                     i = getReg();
                     while ( l ){
-                        // printf("%s\n", l->name);
+                        // Fetching value of arguments to push 
                         if ( findParam(method->paramlist, l->name)
                             && l->type->generalType != CLASS_TYPE ){
                             paramnum++;
@@ -228,11 +235,13 @@ int codeGen( struct tnode *t , struct Context * c) {
                             fprintf(fp, "SUB R%d, %d\n", i, paramnum+2);
                             fprintf(fp, "MOV R%d, [R%d]\n", i, i);
                         }
-
+                        // Even though USER_DEF has big size,
+                        // only 1 field is required as they are stored to the heap memory
                         if ( l->type->generalType == USER_DEF ){
                             fprintf(fp, "PUSH R%d\n", i);
                             inc++;
                         }
+                        // SELF / Class objects have to be fetched and pushed
                         else if ( l->type->generalType == CLASS_TYPE ){
                             paramnum+=2;
                             // Pushing Member Field Pointer
@@ -247,9 +256,8 @@ int codeGen( struct tnode *t , struct Context * c) {
                             fprintf(fp, "PUSH R%d\n", i);
                             inc+=2;
                         }
+                        // Pushing tuples and Local Body Declarations and Args
                         else{
-                            // fprintf(fp, "ADD SP, %d\n", l->type->size);
-                            // inc += l->type->size;
                             for (int x=0;x<l->type->size;x++){ 
                                 fprintf(fp, "PUSH R%d\n", i);
                                 inc++;
@@ -276,7 +284,8 @@ int codeGen( struct tnode *t , struct Context * c) {
                     break;
                 }
                 
-                case FDefNode: {
+                // Function Definition
+                case NODE_FDEF: {
                     if ( strcmp(t->children[1]->name, "main") == 0 ){
                         fprintf(fp, "MAIN:\n");
                         fprintf(fp, "MOV BP, SP\n");
@@ -284,33 +293,36 @@ int codeGen( struct tnode *t , struct Context * c) {
                         struct Lsymbol * l = t->Lentry;
                         int inc = 0;
                         while ( l ){ 
-                            if (l->type->generalType == TYPE_TUPLE) inc += l->type->size; 
-                            else if (l->type->generalType == CLASS_TYPE) inc += l->type->size; 
+                            if ( l->type->generalType == TYPE_TUPLE 
+                                || l->type->generalType == CLASS_TYPE) inc += l->type->size; 
                             else inc++;
                             l = l->next; 
                         }
+                        // Pushing Local Declaration Varaiables
                         fprintf(fp, "ADD SP, %d\n", inc); 
 
+                        // Propagating to Function Body
                         c->mainFunc = 1;
                         c->localvars = inc;
                         codeGen(t->children[3], c);
 
+                        // Popping the local declarations
                         fprintf(fp, "SUB SP, %d\n", c->localvars);
-                        // for (int x=0;x<c->localvars;x++) fprintf(fp, "POP R0\n");
-
                         fprintf(fp, "RET\n");
                     }
                     else if ( t->Gentry ) {
+
                         fprintf(fp, "F%d:\n", t->Gentry->flabel);
                         fprintf(fp, "PUSH BP\n");
                         fprintf(fp, "MOV BP, SP\n");
                         
-                        // Arguments getting pushed in 
+                        // Arguments & Parameters getting pushed in 
                         struct Lsymbol * l = t->Lentry;
                         int paramnum = 0;
                         int inc = 0;
                         i = getReg();
                         while ( l ){
+                            // Fetching value of arguments to push 
                             if ( findParam(t->Gentry->paramlist, l->name) 
                                 && l->type->generalType != CLASS_TYPE){
                                 paramnum++;
@@ -318,10 +330,13 @@ int codeGen( struct tnode *t , struct Context * c) {
                                 fprintf(fp, "SUB R%d, %d\n", i, paramnum+2);
                                 fprintf(fp, "MOV R%d, [R%d]\n", i, i);
                             }
+                            // Even though USER_DEF has big size,
+                            // only 1 field is required as they are stored to the heap memory
                             if ( l->type->generalType == USER_DEF ){
                                 fprintf(fp, "PUSH R%d\n", i);
                                 inc++;
                             }
+                            // SELF / Class objects have to be fetched and pushed
                             else if ( l->type->generalType == CLASS_TYPE ){
                                 paramnum+=2;
                                 // Pushing Member Field Pointer
@@ -336,6 +351,7 @@ int codeGen( struct tnode *t , struct Context * c) {
                                 fprintf(fp, "PUSH R%d\n", i);
                                 inc+=2;
                             }
+                            // Pushing tuples and Local Body Declarations and Args
                             else{
                                 for (int x=0;x<l->type->size;x++){ 
                                     fprintf(fp, "PUSH R%d\n", i);
@@ -354,7 +370,6 @@ int codeGen( struct tnode *t , struct Context * c) {
                         // In case of no return statement
                         // Pop out the local variables from the stack
                         fprintf(fp, "SUB SP, %d\n", c->localvars);
-                        // ALT - for (int x=0; x<c->localvars; x++) fprintf(fp, "POP R0\n");
 
                         // set BP to the old value of BP in the stack
                         fprintf(fp, "POP BP\n");
@@ -362,22 +377,18 @@ int codeGen( struct tnode *t , struct Context * c) {
                     }
                     break;
                 }
-                // Checked -
-                case FBodyNode: {
-                    codeGen(t->children[1], c);
-                    break;
-                }
                 
-                // Checked - Adding a breakpoint
-                case brkpNode: {
+                // Adding a breakpoint
+                case NODE_BRKP: {
                     fprintf(fp, "BRKP\n" );
                     break;
                 }
 
                 // Assignment Operator ( evaluates RHS expression and frees that register )
-                case assignNode:{
+                case NODE_ASSIGN:{
                     i = codeGen(t->children[0], c);
-                    // printf("type: %d\n", t->children[0]->type->generalType);
+
+                    // When one tuple is being assigned completely to another
                     if ( t->children[0]->type->generalType == TYPE_TUPLE ){
                         struct Fieldlist * f = t->children[0]->type->fields;
                         j = codeGen(t->children[1]->children[0], c);
@@ -391,7 +402,8 @@ int codeGen( struct tnode *t , struct Context * c) {
                         }
                         freeReg();
                     }
-                    else if ( t->children[1]->nodetype == newNode ){
+                    // When object is allocated new space in the heap and a new VFuncPtr
+                    else if ( t->children[1]->nodetype == NODE_NEW ){
                         // Allocating space for Members and storing in Rj
                         for (int x = 0; x < register_index; x ++ ){
                             fprintf(fp, "PUSH R%d\n", x);
@@ -411,16 +423,19 @@ int codeGen( struct tnode *t , struct Context * c) {
                         fprintf(fp, "ADD R%d, 1\n", i);
                         fprintf(fp, "MOV [R%d], %d\n", i, ci);
                     }
-                    else if ( t->children[1]->nodetype == exprNode
+                    // When one class is being assigned to another. Changes the heap base address
+                    // and the VFuncPtr
+                    else if ( t->children[1]->nodetype == NODE_EXPR
                             && t->children[1]->children
                             && t->children[1]->children[0]->Ctype
-                            && t->children[1]->children[0]->nodetype == idNode ){
+                            && t->children[1]->children[0]->nodetype == NODE_ID ){
                         j = codeGen(t->children[1]->children[0], c);
                         fprintf(fp, "MOV [R%d], [R%d]\n", i, j );
                         fprintf(fp, "ADD R%d,   1\n", i );
                         fprintf(fp, "ADD R%d,   1\n", j );
                         fprintf(fp, "MOV [R%d], [R%d]\n", i, j );
                     }
+                    // Normal one variable assignment
                     else{
                         j = codeGen(t->children[1], c);
                         fprintf(fp, "MOV [R%d], R%d\n", i, j );
@@ -431,7 +446,7 @@ int codeGen( struct tnode *t , struct Context * c) {
                 }
 
                 // If then else construct
-                case ifNode:{
+                case NODE_IF:{
                     int l1 = getLabel();
                     int l2;
                     int elseExists = (t->children[2] != NULL);
@@ -457,7 +472,7 @@ int codeGen( struct tnode *t , struct Context * c) {
                 }
 
                 // While construct
-                case whileNode:{     
+                case NODE_WHILE:{     
                     int l1 = getLabel();
                     int l2 = getLabel();
 
@@ -480,18 +495,19 @@ int codeGen( struct tnode *t , struct Context * c) {
                     break;
                 }
 
-                case breakNode:{     
+                // Break JMP Condition
+                case NODE_BREAK:{     
                     fprintf(fp, "JMP L%d\n", c->jumpLabels[1]);
                     break;
                 }
-
-                case contNode:{     
+                // Continue JMP Condition
+                case NODE_CONTINUE:{     
                     fprintf(fp, "JMP L%d\n", c->jumpLabels[0]);
                     break;
                 }      
                             
                 // Do - While construct
-                case dowhileNode:{   
+                case NODE_DOWHILE:{   
                     int l1 = getLabel();
                     int l2 = getLabel();
 
@@ -512,7 +528,7 @@ int codeGen( struct tnode *t , struct Context * c) {
                     break;
                 }
                 // Repeat-Until construct
-                case repeatNode:{    
+                case NODE_REPEAT:{    
                     int l1 = getLabel();
                     int l2 = getLabel();
 
@@ -534,26 +550,28 @@ int codeGen( struct tnode *t , struct Context * c) {
                 }
 
                 // Simple immediate MOV instruction
-                case numNode:{       
+                case NODE_CONST_NUM:{       
                     i = getReg();
                     fprintf(fp, "MOV R%d, %d\n", i, t->value.intval);
                     break;
                 }
-                case strConstNode:{       
+                case NODE_CONST_STR:{       
                     i = getReg();   
                     fprintf(fp, "MOV R%d, %s\n", i, t->value.strval);
                     break;
                 }
                 
-                case derefOpNode:
-                case exprNode :{       
+                // To get the value from the address
+                case NODE_DEREF:
+                case NODE_EXPR :{       
                     i = codeGen(t->children[0], c);   
                     fprintf(fp, "MOV R%d, [R%d]\n", i, i );
                     break;
                 }
 
-                case selfNode:
-                case idNode :{       
+                // Retrieve the binding address for a variable
+                case NODE_SELF:
+                case NODE_ID :{       
                     i = getReg();
                     if ( t->Lentry != NULL ){
                         fprintf(fp, "MOV R%d, BP\n", i);
@@ -567,8 +585,7 @@ int codeGen( struct tnode *t , struct Context * c) {
                     }
                     break;
                 }
-
-                case arrTypeNode :{   
+                case NODE_ARR_TYPE :{   
                     if ( t->children[0]->Gentry == NULL ){
                         printf("Error: No symbol entry\n");
                         exit(1);
@@ -581,15 +598,16 @@ int codeGen( struct tnode *t , struct Context * c) {
                     break;
                 }
 
-                case readNode:{      
+                // Read Function Call
+                case NODE_READ:{      
                     i = codeGen(t->children[0], c);
                     fprintf(fp, "MOV R19, R%d\n", i );
                     fprintf(fp, "CALL READ\n");
                     freeReg();
                     break;
                 }
-                                    
-                case writeNode:{     
+                // Write Function Call
+                case NODE_WRITE:{     
                     i = codeGen(t->children[0], c);
                     fprintf(fp, "MOV R19, R%d\n", i);
                     fprintf(fp, "CALL WRITE\n");
@@ -597,14 +615,18 @@ int codeGen( struct tnode *t , struct Context * c) {
                     break;
                 }
             
-                case funcCallNode:{
+                // Function/Method Calls
+                case NODE_FUNC_CALL:{
+                    // Pushing Registers in Use into Stack
+                    t->value.intval = register_index;
+                    for (int reg=0;reg<t->value.intval;reg++){
+                        fprintf(fp, "PUSH R%d\n", reg);
+                    }
+                    // Will be used for popping stuff later
+                    struct Paramstruct * g;
 
+                    // Class method calls
                     if ( t->children[0]->Ctype){
-                        // Pushing Registers in Use into Stack
-                        t->value.intval = register_index;
-                        for (int reg=0;reg<t->value.intval;reg++){
-                            fprintf(fp, "PUSH R%d\n", reg);
-                        }
                         
                         // Pushing in the heap location of the object and VFuncPtr of the object
                         i = codeGen(t->children[0], c);
@@ -617,7 +639,7 @@ int codeGen( struct tnode *t , struct Context * c) {
 
                         // Finding out to which addr the call has to be made from the VFuncTable
                         struct MemberFunclist * method
-                            = MethodLookup(t->children[0]->children[1]->name, t->children[0]->Ctype);
+                         = MethodLookup(t->children[0]->children[1]->name, t->children[0]->Ctype);
                         fprintf(fp, "ADD R%d, %d\n", j, method->funcposition);
                         
                         // If arglist is present Call CodeGen again to push Args
@@ -639,26 +661,13 @@ int codeGen( struct tnode *t , struct Context * c) {
                         fprintf(fp, "POP R%d\n", i);
                         
                         // Calculate number of args to pop
-                        struct Paramstruct * g = method->paramlist;
-                        while (g){
-                            fprintf(fp, "POP R19\n");
-                            g = g->next;
-                        }
+                        g = method->paramlist;
 
                         // Popping the object member and VFunctPtr 
                         fprintf(fp, "SUB SP, 2\n");
-                        // ALT - fprintf(fp, "POP R19\n");
-                        // ALT - fprintf(fp, "POP R19\n");
-
-                        // Restore Register Context
-                        for (int x=t->value.intval-1; x >=0 ; x -- ) fprintf(fp, "POP R%d\n", x);
                     }
+                    // Normal Function Calls
                     else{
-                        // Pushing Registers in Use into Stack
-                        t->value.intval = register_index;
-                        for (int reg=0;reg<t->value.intval;reg++){
-                            fprintf(fp, "PUSH R%d\n", reg);
-                        }
                         // If arglist is present Call CodeGen again to push Args
                         if ( t->children[1] ) codeGen(t->children[1], c);
                         
@@ -675,27 +684,29 @@ int codeGen( struct tnode *t , struct Context * c) {
                         fprintf(fp, "POP R%d\n", i);
                         
                         // Calculate number of args to pop
-                        int argCnt = 0;
-                        struct Paramstruct * g = t->children[0]->Gentry->paramlist;
-                        while (g){
-                            // ALT - fprintf(fp, "POP R19\n");
-                            if (g->type->generalType == CLASS_TYPE) argCnt+= g->type->size;
-                            else argCnt++;
-                            g = g->next;
-                        }
-                        fprintf(fp, "SUB SP, %d\n", argCnt);
-
-                        // Restore Register Context
-                        for (int x=t->value.intval-1; x >=0 ; x -- ) fprintf(fp, "POP R%d\n", x);
+                        g = t->children[0]->Gentry->paramlist;
                     }
+                    
+                    // Calculating number of arguments to pop
+                    int argCnt = 0;
+                    while (g){
+                        if (g->type->generalType == CLASS_TYPE) argCnt+= g->type->size;
+                        else argCnt++;
+                        g = g->next;
+                    }
+                    // Popping Arguments
+                    fprintf(fp, "SUB SP, %d\n", argCnt);
+                    // Restore Register Context
+                    for (int x=t->value.intval-1; x >=0 ; x -- ) fprintf(fp, "POP R%d\n", x);
                     break;
                 }
                 
-                case argNode:{
-                    // To handle objects being passed
+                // Used for pushing arguments
+                case NODE_ARG:{
+                    // To handle objects being passed as arguments
                     if ( t->children[t->childcount-1]->children
-                        && t->children[t->childcount-1]->nodetype == exprNode
-                        && t->children[t->childcount-1]->children[0]->nodetype == idNode
+                        && t->children[t->childcount-1]->nodetype == NODE_EXPR
+                        && t->children[t->childcount-1]->children[0]->nodetype == NODE_ID
                         && t->children[t->childcount-1]->children[0]->Ctype ){
                         struct Classtable * CTEntry 
                             = t->children[t->childcount-1]->children[0]->Ctype;
@@ -710,6 +721,7 @@ int codeGen( struct tnode *t , struct Context * c) {
                         freeReg();
                         freeReg();
                     }
+                    // Any other arguments are considered as 1 size 
                     else{
                         i = codeGen(t->children[t->childcount-1], c);
                         fprintf(fp, "PUSH R%d\n", i);
@@ -721,7 +733,8 @@ int codeGen( struct tnode *t , struct Context * c) {
                     break;
                 }
                 
-                case returnNode:{
+                // Return Statements
+                case NODE_RETURN:{
                     i =  codeGen(t->children[0], c);
                     if ( c->mainFunc == 0 ){
                         j = getReg();
@@ -741,10 +754,11 @@ int codeGen( struct tnode *t , struct Context * c) {
                     break;
                 }
                 
-                case memberNode:{
+                // Member access - TUPLE / CLASS / USER_DEFINED
+                case NODE_MEMBER:{
                     // Handling Member access for Tuples
                     if ( t->children[0]->type->generalType == TYPE_TUPLE ){
-                        if ( t->children[0]->nodetype == idNode ){
+                        if ( t->children[0]->nodetype == NODE_ID ){
                             // If it is the first variable then access the GST or LST to get address
                             // Store in the register "i" and pass it up
                             i = getReg();
@@ -760,7 +774,7 @@ int codeGen( struct tnode *t , struct Context * c) {
                                 exit(1);
                             }
                         }
-                        else if ( t->children[0]->nodetype == memberNode ){
+                        else if ( t->children[0]->nodetype == NODE_MEMBER ){
                             // If it is a member then i has the address just need to access it
                             i = codeGen(t->children[0], c);
                             fprintf(fp, "MOV R%d, [R%d]\n", i, i);
@@ -781,14 +795,13 @@ int codeGen( struct tnode *t , struct Context * c) {
                         fprintf(fp, "ADD R%d, %d\n", i, f->fieldIndex );
                         break;
                     }
-                    // Handling Function Calls
+                    // Handling Object Member access and function calls
                     else if ( t->Ctype ){
                         i = codeGen(t->children[0], c);
                         struct Fieldlist * member = MemberLookup(t->children[1]->name, t->Ctype);
                         struct MemberFunclist * method
                             = MethodLookup(t->children[1]->name, t->Ctype);
                         if ( member != NULL ){
-                            // printf("Member");
                             fprintf(fp, "MOV R%d, [R%d]\n", i, i);
                             fprintf(fp, "ADD R%d, %d\n", i, member->fieldIndex);
                         }
@@ -797,13 +810,15 @@ int codeGen( struct tnode *t , struct Context * c) {
                     }
                 }
 
-                case nullNode: {
+                // NULL is represented as -1 in the pointer location
+                case NODE_NULL: {
                     i = getReg();
                     fprintf(fp, "MOV R%d, -1\n", i);
                     break;
                 }
 
-                case initNode: {
+                // Call to Initialize Function
+                case NODE_INIT: {
                     for (int x = 0; x < register_index; x ++ ){
                         fprintf(fp, "PUSH R%d\n", x);
                     }
@@ -816,8 +831,8 @@ int codeGen( struct tnode *t , struct Context * c) {
                     freeReg();
                     break;
                 }
-
-                case allocNode: {
+                // Call to Alloc Function
+                case NODE_ALLOC: {
                     for (int x = 0; x < register_index; x ++ ){
                         fprintf(fp, "PUSH R%d\n", x);
                     }
@@ -830,8 +845,8 @@ int codeGen( struct tnode *t , struct Context * c) {
                     freeReg();
                     break;
                 }
-
-                case freeNode: {
+                // Call to Free Function
+                case NODE_FREE: {
                     for (int x = 0; x < register_index; x ++ ){
                         fprintf(fp, "PUSH R%d\n", x);
                     }
@@ -846,7 +861,8 @@ int codeGen( struct tnode *t , struct Context * c) {
                     break;
                 }
             
-                case deleteNode: {
+                // Deleting an object - Storing NULL in both locations
+                case NODE_DELETE: {
                     i = codeGen(t->children[0], c);
                     fprintf(fp, "MOV [R%d], -1\n", i);
                     fprintf(fp, "ADD  R%d,   1\n", i);
@@ -860,31 +876,31 @@ int codeGen( struct tnode *t , struct Context * c) {
             i = codeGen(t->children[0], c);
             j = codeGen(t->children[1], c);
             switch( t->nodetype ){
-                case addNode:   fprintf(fp, "ADD R%d, R%d\n", i, j);
+                case NODE_ADD:   fprintf(fp, "ADD R%d, R%d\n", i, j);
                                 break;
-                case mulNode:   fprintf(fp, "MUL R%d, R%d\n", i, j);
+                case NODE_MUL:   fprintf(fp, "MUL R%d, R%d\n", i, j);
                                 break;
-                case subNode:   fprintf(fp, "SUB R%d, R%d\n", i, j);
+                case NODE_SUB:   fprintf(fp, "SUB R%d, R%d\n", i, j);
                                 break;
-                case divNode:   fprintf(fp, "DIV R%d, R%d\n", i, j);
+                case NODE_DIV:   fprintf(fp, "DIV R%d, R%d\n", i, j);
                                 break;
-                case modNode:   fprintf(fp, "MOD R%d, R%d\n", i, j);
+                case NODE_MOD:   fprintf(fp, "MOD R%d, R%d\n", i, j);
                                 break;
-                case geNode:    fprintf(fp, "GE  R%d, R%d\n", i, j);
+                case NODE_GE:    fprintf(fp, "GE  R%d, R%d\n", i, j);
                                 break;
-                case leNode:    fprintf(fp, "LE  R%d, R%d\n", i, j);
+                case NODE_LE:    fprintf(fp, "LE  R%d, R%d\n", i, j);
                                 break;
-                case gtNode:    fprintf(fp, "GT  R%d, R%d\n", i, j);
+                case NODE_GT:    fprintf(fp, "GT  R%d, R%d\n", i, j);
                                 break;
-                case ltNode:    fprintf(fp, "LT  R%d, R%d\n", i, j);
+                case NODE_LT:    fprintf(fp, "LT  R%d, R%d\n", i, j);
                                 break;
-                case eqNode:    fprintf(fp, "EQ  R%d, R%d\n", i, j);
+                case NODE_EQ:    fprintf(fp, "EQ  R%d, R%d\n", i, j);
                                 break;
-                case neNode:    fprintf(fp, "NE  R%d, R%d\n", i, j);
+                case NODE_NE:    fprintf(fp, "NE  R%d, R%d\n", i, j);
                                 break;
-                case andNode:   fprintf(fp, "MUL  R%d, R%d\n", i, j);
+                case NODE_AND:   fprintf(fp, "MUL  R%d, R%d\n", i, j);
                                 break;
-                case orNode:    fprintf(fp, "ADD  R%d, R%d\n", i, j);
+                case NODE_OR:    fprintf(fp, "ADD  R%d, R%d\n", i, j);
                                 break;
             }
             freeReg();
