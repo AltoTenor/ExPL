@@ -11,8 +11,9 @@ for file in input/*; do
         else
             echo "Test Failed"
             diff tests/$file_name/output tests/temp
-            break
+            exit 1
         fi
     fi
     cd $1
 done
+echo "All Tests Passed ! "

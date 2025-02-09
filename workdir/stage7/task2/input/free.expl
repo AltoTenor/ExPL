@@ -31,7 +31,9 @@ int main()
 		x = free(t);
 		x = free(t1);
 		x = free(t2);
-
+		write(t);
+		write(t1);
+		write(t2);
 		return 0;
 	end
 }
