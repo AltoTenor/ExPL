@@ -1,0 +1,9 @@
+int main(){
+	decl
+		tuple faculty (int a, int b, int c) x,y;
+	enddecl
+	begin
+		read(x.c);
+		return 0;
+	end
+}

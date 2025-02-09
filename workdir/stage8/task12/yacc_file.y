@@ -1,0 +1,499 @@
+%{
+    #include <stdlib.h>
+    #include <stdio.h>
+    #include <string.h>
+    #include <stddef.h>
+    #include "analyser.h"
+    int yylex(void);
+    int yyerror(char const *s);
+    struct tnode** alloc_1(struct tnode * t1);
+    struct tnode** alloc_2(struct tnode * t1, struct tnode * t2);
+    struct tnode** alloc_3(struct tnode * t1, struct tnode * t2,  struct tnode * t3);
+    struct tnode** alloc_4( struct tnode * t1, 
+                            struct tnode * t2,  
+                            struct tnode * t3,  
+                            struct tnode * t4);
+    struct tnode** alloc_5( struct tnode * t1, 
+                            struct tnode * t2,  
+                            struct tnode * t3,  
+                            struct tnode * t4,
+                            struct tnode * t5);
+    extern FILE *yyin;
+    extern FILE *fp;
+    extern int SP;
+    extern int classIndex;
+    extern int globalFlabel;
+    extern struct Gsymbol * symbolTable;
+    extern struct Classtable * classTable;
+%}
+
+%union{
+    struct tnode * no;
+}
+
+%type <no> Program GDeclBlock FDefBlock MainBlock TypeDefBlock ClassDefBlock
+%type <no> ClassDefList ClassDef Cname MethodDecl MethodDefns MDecl Mdef
+%type <no> GDeclList GDecl GidList Gid
+%type <no> Fdef LdeclBlock Body LDecList LDecl FuncBody
+%type <no> slist stmt AsgStmt InputStmt OutputStmt IfStmt WhileStmt DoWhileStmt RepeatStmt ReturnStmt
+%type <no> identifier expr ArgList IdList ParamList Param Type
+%type <no> TypeDefList TypeDef FieldDeclList FieldDecl NewTypeID
+
+%token <no> START END DECL ENDDECL BRKP MAIN RETURN TUPLE TYPE ENDTYPE
+%token <no> ID STR INT NUM STRING READ WRITE INITIALIZE ALLOC NULL_KEYWORD FREE SELF NEW DELETE
+%token <no> IF ENDIF ELSE THEN  
+%token <no> CLASS ENDCLASS EXTENDS
+%token <no> REPEAT UNTIL WHILE DO ENDWHILE BREAK CONTINUE
+%token <no> GE GT LE LT EQ NE AND OR
+%left AND OR 
+%nonassoc GE GT LE LT EQ NE 
+%left '+' '-'
+%left '*' '/' '%'
+
+%%
+
+/* Grammar rules section */
+
+
+/* Program Root section */
+Program : TypeDefBlock ClassDefBlock GDeclBlock FDefBlock MainBlock {          
+        $$ = createTree(NULL, NULL, "void", NODE_ROOT, alloc_5($1, $2, $3, $4, $5) , 5, NULL, NULL); 
+        printTypeTable();
+        printGSymbolTable();
+        printTree($$, NULL, 0);
+        compile($$);
+    }
+    | TypeDefBlock ClassDefBlock GDeclBlock MainBlock {
+        $$ = createTree(NULL, NULL, "void", NODE_ROOT, alloc_5($1, $2, $3, NULL, $4), 5, NULL, NULL); 
+        printTypeTable();
+        printGSymbolTable();
+        printTree($$, NULL, 0);
+        compile($$);
+    }
+;
+
+/* Type Definitions */
+TypeDefBlock : TYPE TypeDefList ENDTYPE { $$ = $2;  }
+    | { $$ = NULL; }
+;
+TypeDefList : TypeDefList TypeDef {
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR,  alloc_2($1, $2) , 2 , NULL, NULL);
+    }
+    | TypeDef { $$ = $1; }
+;
+TypeDef : NewTypeID '{' FieldDeclList '}' {
+        $$ = createTree(NULL, NULL, "void", NODE_TYPEDEF,  alloc_2($1, $3) , 2 , NULL, NULL);
+        setUserDefType($$);
+    }
+;
+NewTypeID: ID { TInstall($1->name, 1, NULL, USER_DEF, NULL); $$ = $1; }
+;
+
+/* Field Declarations (Used in USERDEF and CLASS and TUPLES) */ 
+FieldDeclList : FieldDeclList FieldDecl {
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR,  alloc_2($1, $2) , 2 , NULL, NULL);
+    }   
+    | FieldDecl { $$ = $1; }
+;
+FieldDecl : Type ID ';' {
+        $$ = createTree(NULL, NULL, "void", NODE_PARAM,  alloc_2($1, $2) , 2 , NULL, NULL);
+    }
+;
+
+/* Class Declarations */
+ClassDefBlock : CLASS ClassDefList ENDCLASS { 
+        $$ = $2; 
+        printClassTable();
+    }
+    | { $$ = NULL; }
+;
+ClassDefList : ClassDefList ClassDef {
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR,  alloc_2($1, $2) , 2 , NULL, NULL); 
+    }
+    | ClassDef { $$ = $1; }
+;
+ClassDef : Cname '{' DECL FieldDeclList MethodDecl ENDDECL MethodDefns '}' {
+        $$ = createTree(NULL, NULL, "void", NODE_CLASS_DEF,  alloc_4($1, $4, $5, $7) , 4 , NULL, NULL);
+    }
+    |  Cname '{' DECL MethodDecl ENDDECL MethodDefns '}' {
+        $$ = createTree(NULL, NULL, "void", NODE_CLASS_DEF,  alloc_4($1, NULL, $4, $6) , 4 , NULL, NULL);
+    }
+    |  Cname '{' DECL FieldDeclList ENDDECL MethodDefns '}' {
+        printf("Missing Function Declaration.\n");
+        printf("If no functions are declared, recommended to use User Defined types\n");
+        exit(1);
+    }
+;
+Cname : ID { 
+        $$ = createTree(NULL, NULL, "void", NODE_CNAME,  alloc_2($1, NULL) , 2, NULL, NULL); 
+    }
+    | ID EXTENDS ID { 
+        $$ = createTree(NULL, NULL, "void", NODE_CNAME,  alloc_2($1, $3) , 2, NULL, NULL);
+    }
+;
+/* Class Method Declarations */
+MethodDecl : MethodDecl MDecl { 
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR,  alloc_2($1, $2) , 2 , NULL, NULL); 
+    }
+    | MDecl { $$ = $1; }
+;
+MDecl : Type ID '(' ParamList ')' ';' { 
+        $$ = createTree(NULL, NULL, "void", NODE_MDECL,  alloc_3($1, $2, $4) , 3 , NULL, NULL); 
+    }
+    | Type ID '(' ')' ';' { 
+        $$ = createTree(NULL, NULL, "void", NODE_MDECL,  alloc_3($1, $2, NULL) , 3 , NULL, NULL); 
+    }
+;
+MethodDefns : MethodDefns Mdef { 
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR,  alloc_2($1, $2) , 2 , NULL, NULL); 
+    }
+    | Mdef { $$ = $1; }
+;
+Mdef : Type ID '(' ParamList ')' '{' FuncBody '}' { 
+        $$ = createTree(NULL, NULL, "void", NODE_MDEF, alloc_4($1, $2, $4, $7), 4, NULL, NULL);
+    }
+    | Type ID '(' ')' '{' FuncBody '}' { 
+        $$ = createTree(NULL, NULL, "void", NODE_MDEF, alloc_4($1, $2, NULL, $6), 4, NULL, NULL);
+    }
+;
+
+/* Global Declarations */
+GDeclBlock : DECL GDeclList ENDDECL { $$ = $2; }
+    | { $$ = NULL; }
+;
+GDeclList : GDeclList GDecl {
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR,  alloc_2($1, $2) , 2 , NULL, NULL); 
+    }
+    | GDecl { $$ = $1; }
+;
+GDecl : Type GidList ';' {
+        $$ = createTree(NULL, NULL, "void", NODE_GDECL,  alloc_2($1, $2) , 2 , NULL, NULL); 
+        setGTypes( $2, $1->type, NULL );
+    }
+    | TUPLE ID '(' ParamList ')' IdList ';'{
+        $$ = createTree(NULL, NULL, "void", NODE_TUPLE, alloc_3($2, $4, $6), 3, NULL, NULL);
+        initTuple($$->children, NULL);
+    }
+;
+GidList : GidList ',' Gid {
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR,  alloc_2($1, $3) , 2 , NULL, NULL); 
+    }
+    | Gid { $$ = $1; }
+;
+Gid : ID { $$ = $1; }
+    | '*' ID { 
+        $$ = createTree(NULL, NULL, "void", NODE_PTR,  alloc_1($2) , 1 , NULL, NULL); 
+    }
+    | ID '[' NUM ']'  { 
+        $$ = createTree(NULL, NULL, "void", NODE_ARR_TYPE,  alloc_2($1, $3) , 2 , NULL, NULL); 
+    }
+    | ID '(' ParamList ')' {
+        $$ = createTree(NULL, NULL, "void", NODE_GDECL_FUNC,  alloc_2($1, $3) , 2 , NULL, NULL); 
+    }
+    | ID '(' ')' {
+        $$ = createTree(NULL, NULL, "void", NODE_GDECL_FUNC,  alloc_2($1, NULL) , 2 , NULL, NULL); 
+    }
+    | '*' ID '(' ParamList ')' {
+        $$ = createTree(NULL, NULL, "void", NODE_GDECL_PTRFUNC,  alloc_2($2, $4) , 2 , NULL, NULL); 
+    }
+    | '*' ID '(' ')' {
+        $$ = createTree(NULL, NULL, "void", NODE_GDECL_PTRFUNC,  alloc_2($2, NULL) , 2 , NULL, NULL); 
+    }
+;
+
+/* Function Definition */
+FDefBlock : FDefBlock Fdef {
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR, alloc_2($1, $2), 2, NULL, NULL );
+    }
+    | Fdef { $$ = $1; }
+;
+Fdef : Type ID '(' ParamList ')' '{' FuncBody '}' {
+        $$ = createTree(NULL, NULL, "void", NODE_FDEF, alloc_4($1, $2, $4, $7), 4, NULL, $7-> Lentry );
+        printf("LST: %s function\n", $2->name);
+        printLSymbolTable($$->Lentry);
+    }
+    | Type ID '(' ')' '{' FuncBody '}' {
+        $$ = createTree(NULL, NULL, "void", NODE_FDEF, alloc_4($1, $2, NULL, $6), 4, NULL, $6 -> Lentry);
+        printf("LST: %s function\n", $2->name);
+        printLSymbolTable($$->Lentry);
+    }
+    | Type '*' ID '(' ParamList ')' '{' FuncBody '}' {
+        $1->type = make_pointer($1->type);
+        $$ = createTree(NULL, NULL, "void", NODE_FDEF, alloc_4($1, $3, $5, $8), 4, NULL, $8-> Lentry );
+        printf("LST: %s function\n", $3->name);
+        printLSymbolTable($$->Lentry);
+    }
+    | Type '*' ID '(' ')' '{' FuncBody '}' {
+        $1->type = make_pointer($1->type);
+        $$ = createTree(NULL, NULL, "void", NODE_FDEF, alloc_4($1, $3, NULL, $7), 4, NULL, $7 -> Lentry);
+        printf("LST: %s function\n", $3->name);
+        printLSymbolTable($$->Lentry);
+    }
+;
+/* Main Function */
+MainBlock: Type MAIN '(' ')' '{' FuncBody '}' {
+        if ( $1->type != TLookup("int") ){ printf("Main not INT\n"); exit(1);}
+        $$ = createTree(NULL, NULL, "void", NODE_FDEF, alloc_4($1, $2, NULL, $6), 4, NULL, $6 -> Lentry);
+        printf("LST %s function\n", $2->name);
+        printLSymbolTable($$->Lentry);
+    }
+;
+FuncBody : LdeclBlock Body {
+        struct Lsymbol * ltemp = NULL;
+        if ($1 != NULL ) ltemp = $1->Lentry;
+        $$ = createTree(NULL, NULL, "void", NODE_FBODY, alloc_2($1, $2), 2, NULL, ltemp );
+    }
+    | Body { $$ = createTree(NULL, NULL, "void", NODE_FBODY, alloc_2(NULL, $1), 2, NULL, NULL ); }
+;
+
+/* Local Function Declarations */
+LdeclBlock : DECL LDecList ENDDECL { $$ = $2; }
+    | DECL ENDDECL { $$ = NULL; }
+;
+LDecList : LDecList LDecl {
+        struct Lsymbol * Lentry = joinLsymbols($1->Lentry, $2->Lentry);
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR, alloc_2($1, $2), 2, NULL, Lentry );
+    }
+    | LDecl { $$ = $1; }
+;
+LDecl : Type IdList ';'{
+        $$ = createTree(NULL, NULL, "void", NODE_LDECL, alloc_2($1, $2), 2, NULL, NULL);
+        setLTypes($1->type, $2, $$);
+    }
+    | TUPLE ID '(' ParamList ')' IdList ';'{
+        $$ = createTree(NULL, NULL, "void", NODE_TUPLE, alloc_3($2, $4, $6), 3, NULL, NULL);
+        initTuple($$->children, $$);
+    }
+;
+IdList : IdList ',' ID {
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR,  alloc_2($1, $3) , 2 , NULL, NULL); 
+    }
+    | IdList ',' '*' ID {
+        struct tnode * t = createTree(NULL, NULL, "void", NODE_PTR, alloc_1($4) , 1, NULL, NULL); 
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR,  alloc_2($1, t) , 2 , NULL, NULL); 
+    }
+    | '*' ID { 
+        $$ = createTree(NULL, NULL, "void", NODE_PTR,  alloc_1($2) , 1 , NULL, NULL); 
+    }
+    | ID { $$ = $1; }
+;
+
+/* Parameters in Function Declaration */
+ParamList : ParamList ',' Param {
+        $$ = createTree(NULL, NULL, "void", NODE_CONNECTOR,  alloc_2($1, $3) , 2 , NULL, NULL); 
+    }
+    | Param { $$ = $1; }
+;
+Param : Type ID {
+        $$ = createTree(NULL, NULL, "void", NODE_PARAM,  alloc_2($1, $2) , 2 , NULL, NULL); 
+    }
+    | Type '*' ID {
+        $1->type = make_pointer($1->type);
+        $$ = createTree(NULL, NULL, "void", NODE_PARAM,  alloc_2($1, $3) , 2 , NULL, NULL); 
+    }
+;
+Type : INT { $$ = createTree(NULL, NULL, "int", NODE_TYPE, NULL , 0, NULL, NULL); }
+    | STR { $$ = createTree(NULL, NULL, "str", NODE_TYPE, NULL , 0, NULL, NULL); }
+    | ID { $$ = createTree(NULL, NULL, $1->name, NODE_TYPE, alloc_1($1) , 1, NULL, NULL); }
+;
+
+
+/* Main / Function Code */
+Body: START slist END { $$ = $2; }
+;
+
+
+slist : slist stmt  { $$ = createTree(NULL, NULL, "void",NODE_CONNECTOR,  alloc_2($1, $2), 2, NULL, NULL); } 
+    | stmt          { $$ = $1; }
+;
+
+stmt : AsgStmt      { $$ = $1; } 
+    | InputStmt     { $$ = $1; } 
+    | OutputStmt    { $$ = $1; }
+    | IfStmt        { $$ = $1; }
+    | WhileStmt     { $$ = $1; }
+    | DoWhileStmt   { $$ = $1; }
+    | RepeatStmt    { $$ = $1; }
+    | ReturnStmt    { $$ = $1; }
+    | BREAK ';'     { $$ = $1; }
+    | CONTINUE ';'  { $$ = $1; }
+    | BRKP ';'      { $$ = $1; }
+;
+
+ReturnStmt: RETURN expr ';' {
+        $$ = createTree(NULL, NULL, "void", NODE_RETURN , alloc_1($2), 1, NULL, NULL);
+    }
+;
+
+AsgStmt : identifier '=' expr ';' {
+        $$ = createTree(NULL, NULL, "void", NODE_ASSIGN , alloc_2($1, $3), 2, NULL, NULL);
+    }
+    | '*' identifier '=' expr ';' {
+        printf("%s\n", $2->type->name);
+        struct tnode * t = createTree(NULL, NULL, "void", NODE_DEREF, alloc_1($2), 1, NULL, NULL);
+        $$ = createTree(NULL, NULL, "void", NODE_ASSIGN, alloc_2(t, $4), 2, NULL, NULL);
+    }
+;
+
+identifier : ID  { $$ = $1; }
+    | ID '[' expr ']' {
+        $$ = createTree(NULL, NULL, "int", NODE_ARR_TYPE,  alloc_2($1, $3), 2 , NULL, NULL);
+    }
+    | identifier '.' ID {
+        $$ = createTree(NULL, NULL, "void", NODE_MEMBER,  alloc_2($1, $3), 2 , NULL, NULL);
+    }
+    | SELF {
+        $$ = createTree(NULL, NULL, "void", NODE_SELF,  NULL, 0, NULL, NULL);
+    }
+;
+
+InputStmt : READ '(' identifier ')' ';' {
+        $$ = createTree(NULL, NULL, "void", NODE_READ, alloc_1($3), 1, NULL, NULL);
+    }
+;
+
+OutputStmt : WRITE '(' expr ')' ';'{
+        $$ = createTree(NULL, NULL, "void", NODE_WRITE, alloc_1($3), 1, NULL, NULL);
+    }
+;
+
+IfStmt : IF '(' expr ')' THEN slist ELSE slist ENDIF ';' {
+        $$ = createTree(NULL, NULL, "void", NODE_IF, alloc_3($3, $6, $8), 3, NULL, NULL);
+    }
+    | IF '(' expr ')' THEN slist ENDIF ';' {
+        $$ = createTree(NULL, NULL, "void", NODE_IF, alloc_3($3, $6, NULL), 3, NULL, NULL);
+    }
+;
+
+WhileStmt : WHILE '(' expr ')' DO slist ENDWHILE ';' {
+        $$ = createTree(NULL, NULL, "void", NODE_WHILE, alloc_2($3,$6), 2, NULL, NULL);
+    }
+;
+
+DoWhileStmt : DO slist WHILE '(' expr ')' ';' {
+        $$ = createTree(NULL, NULL, "void", NODE_DOWHILE, alloc_2($2,$5), 2, NULL, NULL);
+    }
+;
+
+RepeatStmt : REPEAT slist UNTIL '(' expr ')' ';' {
+        $$ = createTree(NULL, NULL, "void", NODE_REPEAT, alloc_2($2,$5), 2, NULL, NULL);
+    }
+;
+
+expr : '(' expr ')'     {   $$ = $2; }
+    | expr '+' expr     {   $$ = createTree(NULL, NULL, "void", NODE_ADD, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr '*' expr     {   $$ = createTree(NULL, NULL, "int", NODE_MUL, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr '-' expr     {   $$ = createTree(NULL, NULL, "void", NODE_SUB, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr '/' expr     {   $$ = createTree(NULL, NULL, "int", NODE_DIV, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr '%' expr     {   $$ = createTree(NULL, NULL, "int", NODE_MOD, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr GE expr      {   $$ = createTree(NULL, NULL, "boolean", NODE_GE, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr LE expr      {   $$ = createTree(NULL, NULL, "boolean", NODE_LE, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr LT expr      {   $$ = createTree(NULL, NULL, "boolean", NODE_LT, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr GT expr      {   $$ = createTree(NULL, NULL, "boolean", NODE_GT, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr NE expr      {   $$ = createTree(NULL, NULL, "boolean", NODE_NE, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr EQ expr      {   $$ = createTree(NULL, NULL, "boolean", NODE_EQ, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr AND expr     {   $$ = createTree(NULL, NULL, "boolean", NODE_AND, alloc_2($1, $3), 2, NULL, NULL); }
+    | expr OR expr      {   $$ = createTree(NULL, NULL, "boolean", NODE_OR, alloc_2($1, $3), 2, NULL, NULL); }
+    | '*' expr          {   $$ = createTree(NULL, NULL, "void", NODE_DEREF, alloc_1($2), 1, NULL, NULL); }
+    | NUM               {   $$ = $1; }
+    | STRING            {   $$ = $1; }
+    | identifier        {   $$ = createTree(NULL, NULL, "void", NODE_EXPR, alloc_1($1), 1, NULL, NULL); }
+    | '&' identifier    {   $$ = createTree(NULL, NULL, "void", NODE_ADDR, alloc_1($2), 1, NULL, NULL); }
+    | identifier '(' ')' {
+        $$ = createTree(NULL, NULL, "void", NODE_FUNC_CALL, alloc_2($1, NULL), 2, NULL, NULL);
+    }
+    | identifier '(' ArgList ')' {
+        $$ = createTree(NULL, NULL, "void", NODE_FUNC_CALL, alloc_2($1, $3), 2, NULL, NULL);
+    }
+    | INITIALIZE '(' ')' { $$ = createTree(NULL, NULL, "int", NODE_INIT, NULL, 0, NULL, NULL); }
+    | ALLOC '(' ')'      { $$ = createTree(NULL, NULL, "int", NODE_ALLOC, NULL, 0, NULL, NULL); }
+    | NULL_KEYWORD       { $$ = createTree(NULL, NULL, "null", NODE_NULL, NULL, 0, NULL, NULL); }
+    | FREE '(' ID ')'    { $$ = createTree(NULL, NULL, "int", NODE_FREE, alloc_1($3), 1, NULL, NULL); }
+    | NEW '(' Type ')'   { $$ = createTree(NULL, NULL, "void", NODE_NEW, alloc_1($3), 1, NULL, NULL); }
+    | DELETE '(' ID ')'  { $$ = createTree(NULL, NULL, "int", NODE_DELETE, alloc_1($3), 1, NULL, NULL); }
+;
+
+ArgList : ArgList ',' expr {
+        $$ = createTree( NULL, NULL, "void", NODE_ARG, alloc_2($1, $3), 2, NULL, NULL );
+    }
+    | expr {
+        $$ = createTree( NULL, NULL, "void", NODE_ARG, alloc_1($1), 1, NULL, NULL );
+    }
+;
+
+%%
+
+int yyerror(char const *s)
+{
+    printf("YYerror: %s\n",s);
+    exit(1);
+}
+
+struct tnode** alloc_1(struct tnode * t1){
+    struct tnode ** arr = (struct tnode **)malloc(sizeof(struct tnode*));
+    arr[0] = t1;
+    return arr;
+}
+
+struct tnode** alloc_2(struct tnode * t1, struct tnode * t2){
+    struct tnode ** arr = (struct tnode **)malloc(2*sizeof(struct tnode*));
+    arr[0] = t1;
+    arr[1] = t2;
+    return arr;
+}
+
+struct tnode** alloc_3(struct tnode * t1, struct tnode * t2,  struct tnode * t3){
+    struct tnode ** arr = (struct tnode **)malloc(3*sizeof(struct tnode*));
+    arr[0] = t1;
+    arr[1] = t2;
+    arr[2] = t3;
+    return arr;
+}
+
+struct tnode** alloc_4(struct tnode * t1, struct tnode * t2,  struct tnode * t3, struct tnode * t4){
+    struct tnode ** arr = (struct tnode **)malloc(4*sizeof(struct tnode*));
+    arr[0] = t1;
+    arr[1] = t2;
+    arr[2] = t3;
+    arr[3] = t4;
+    return arr;
+}
+
+struct tnode** alloc_5( struct tnode * t1, 
+                        struct tnode * t2,  
+                        struct tnode * t3, 
+                        struct tnode * t4,
+                        struct tnode * t5){
+    struct tnode ** arr = (struct tnode **)malloc(5*sizeof(struct tnode*));
+    arr[0] = t1;
+    arr[1] = t2;
+    arr[2] = t3;
+    arr[3] = t4;
+    arr[4] = t5;
+    return arr;
+}
+
+int main(int argc, char **argv) {
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <input_file>\n", argv[0]);
+        return 1;
+    }
+
+    // Open the file specified in the first argument
+    yyin = fopen(argv[1], "r");
+    if (!yyin) {
+        perror("Error opening file");
+        return 1;
+    }
+    symbolTable = NULL;
+    classTable = NULL;
+    SP = 4096;
+    globalFlabel = 0;
+    classIndex = 0;
+    TypeTableCreate();
+    yyparse();
+
+    printf("YACC: Compiled succesfully (with labels)! \n");
+
+    return 0;
+}

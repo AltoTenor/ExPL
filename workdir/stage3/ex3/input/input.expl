@@ -1,0 +1,7 @@
+begin
+    read(b);
+    read(c);
+    if (b+c == 10) then
+        write(b);
+    endif;
+end;

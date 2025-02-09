@@ -1,0 +1,10 @@
+decl
+  int x;
+enddecl
+
+int main(){
+    begin
+        read(n);
+        return 0;
+    end
+}

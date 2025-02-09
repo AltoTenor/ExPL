@@ -1,0 +1,49 @@
+class fact {
+    decl
+        int x;
+        int findfactorial(int n);
+    enddecl
+
+    int findfactorial(int n) {
+        decl
+            int p;
+        enddecl
+        begin
+            if (n <= 1) then
+                p = 1;
+            else
+                p = n * self.findfactorial(n - 1);
+            endif;
+            return p;
+        end
+    }
+}
+endclass
+
+decl
+    int f(fact obj);
+enddecl
+
+int f(fact obj){
+    decl
+        int n;
+    enddecl
+    begin
+        read(n);
+        write("Fact !");
+        write(obj.findfactorial(n));
+    end
+}
+
+int main() {
+    decl
+        int x, n;
+        fact obj;
+    enddecl
+    begin
+        x = initialize();
+        obj = new(fact);
+        x = f(obj);
+        return 1;
+    end
+}

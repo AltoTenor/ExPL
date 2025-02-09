@@ -1,0 +1,40 @@
+type
+	bst{
+		int a;
+		int a1;
+		int a2;
+		int a3;
+		int a4;
+		int a5;
+		int a6;
+		int a7;
+	}
+endtype
+
+decl
+		bst t, t1, t2;
+enddecl
+
+int main()
+{
+	decl
+		int x;
+	enddecl
+	begin
+		x = initialize();
+		t = alloc();
+		t.a = 12;
+		t1 = alloc();
+		t1.a = 12;
+		t2 = alloc();
+		t2.a = 12;
+		x = free(t);
+		x = free(t1);
+		x = free(t2);
+		read(x);
+		write(t);
+		write(t1);
+		write(t2);
+		return 0;
+	end
+}

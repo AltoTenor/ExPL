@@ -1,0 +1,65 @@
+0
+2146
+0
+0
+0
+0
+0
+0
+MOV     R1,"Exit"
+PUSH    R1
+PUSH    R1
+PUSH    R1
+PUSH    R1
+PUSH    R1
+CALL    0
+PUSH    R0
+PUSH    R1
+MOV     R1 , "Read"
+PUSH    R1
+MOV     R1 , -2
+PUSH    R1
+MOV     R1 , R19
+PUSH    R1
+PUSH    R1
+PUSH    R1
+CALL    0
+POP     R0
+POP     R1
+POP     R1
+POP     R1
+POP     R1
+POP     R1
+POP     R0
+RET
+PUSH    R0
+PUSH    R1
+MOV     R1, "Write"
+PUSH    R1
+MOV     R1, -2
+PUSH    R1
+MOV     R1, R19
+PUSH    R1
+PUSH    R1
+PUSH    R1
+CALL    0
+POP     R0
+POP     R1
+POP     R1
+POP     R1
+POP     R1
+POP     R1
+POP     R0
+RET
+BRKP
+MOV SP, 4121
+MOV R19, 4096
+CALL 2070
+MOV R19, 4097
+CALL 2070
+MOV R0, [4096]
+MOV R1, [4097]
+ADD R0, R1
+MOV R19, R0
+CALL 2108
+JMP    2056

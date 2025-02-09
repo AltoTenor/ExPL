@@ -1,0 +1,16 @@
+decl
+	tuple faculty (str name, int employeeId) y;
+enddecl
+int main()
+{
+	decl
+		tuple faculty (str name, int employeeId, str dept) x;
+	enddecl
+	begin
+		x.employeeId=2;
+		y.employeeId=12;
+		x=y;
+		write(x.employeeId);
+		return 0;
+	end
+}

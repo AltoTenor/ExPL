@@ -1,0 +1,6 @@
+decl
+   int a,b,c;
+enddecl
+read(b);
+c = &a / 3;
+write(c);

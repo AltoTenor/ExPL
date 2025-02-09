@@ -1,0 +1,48 @@
+0
+2088
+0
+0
+0
+0
+0
+0
+INT     10
+
+MOV     SP, 4095
+MOV     R4, 5
+PUSH    R4
+MOV     R4, -2
+PUSH    R4
+PUSH    R5
+PUSH    R4
+PUSH    R4
+INT     7
+POP     R1
+POP     R4
+POP     R4
+POP     R4
+POP     R4
+JMP     2056
+
+BRKP
+MOV     R0, 116
+MOV     R1, 122
+MOV     R2, 13
+
+MOV     R3, R0
+GE      R3, R1
+JZ      R3, 2112
+
+MOV     R3, R0
+GE      R3, R2
+JZ      R3, 2146
+MOV     R5, R0
+JMP     2058
+
+MOV     R3, R1
+GE      R3, R2
+JZ      R3, 2122
+MOV     R5, R1
+JMP     2058
+MOV     R5, R2
+JMP     2058

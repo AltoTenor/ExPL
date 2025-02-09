@@ -1,0 +1,14 @@
+#!/bin/bash
+
+if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 <your_filename>"
+    exit 1
+fi
+
+# Store the parameter in a variable
+filename=$1
+
+yacc $1; 
+gcc y.tab.c -o t; 
+./t;
+rm y.tab.c t;
