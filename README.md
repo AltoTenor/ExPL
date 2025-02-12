@@ -10,7 +10,7 @@ The ExpL compiler is developed in stages, each building upon the previous one to
 
 Below is a rough Abstract Syntax Tree (AST) representation of the ExpL language grammar:
 
-![AST](Mental_map.png)
+![AST](workdir/Mental_map.png)
 
 
 ## Roadmap
