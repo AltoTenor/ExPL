@@ -1,0 +1,46 @@
+class A {
+    decl
+        int x;
+        int f(int n, int b);
+    enddecl
+
+    int f(int n, int b) {
+        begin
+            write(n+2);
+            return 1;
+        end
+    }
+}
+
+B extends A {
+    decl
+        int f(int n, int b);
+    enddecl
+
+    int f(int n, int b) {
+        begin
+            write(n+7);
+            return 1;
+        end
+    }
+}
+endclass
+
+decl
+    B obj;
+enddecl
+
+int main() {
+    decl
+        int x;
+    enddecl
+    begin
+        x = initialize();
+        obj = new(B);
+        read(x);
+        if ( x > 5 ) then
+            x = obj.f(x, 2);
+        else
+        return 1;
+    end
+}
