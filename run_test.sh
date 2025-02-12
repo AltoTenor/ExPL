@@ -9,7 +9,7 @@ for file in input/*; do
             extracted_part="${input_file##*/input}"
             ./xsm -l library.xsm -e $1/output.xsm < $input_file > tests/temp
             if diff -q tests/$file_name/output$extracted_part tests/temp >/dev/null; then
-                echo "OK"
+                echo "OK $extracted_part"
             else
                 echo "Test Failed"
                 diff tests/$file_name/output tests/temp

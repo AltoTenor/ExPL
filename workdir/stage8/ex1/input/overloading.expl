@@ -1,0 +1,76 @@
+class 
+A {
+    decl
+        int f(int n);
+        int g(int n);
+    enddecl
+
+    int f(int n) {
+        begin
+            write("A1");
+            write(n);
+            return 1;
+        end
+    }
+    int g(int n) {
+        begin
+            write("A2");
+            write(n);
+            return 1;
+        end
+    }
+}
+
+B extends A {
+    decl
+        int f(int n);
+        int g(int n, int b);
+    enddecl
+
+    int f(int n) {
+        begin
+            write("B1");
+            write(n);
+            return 1;
+        end
+    }
+    int g(int n, int b) {
+        begin
+            write("B2");
+            write(n);
+            write(b);
+            return 1;
+        end
+    }
+
+}
+endclass
+
+decl
+    B obj;
+    A obj2;
+enddecl
+
+int main() {
+    decl
+        int x, y, t;
+    enddecl
+    begin
+        t = initialize();
+        obj = new(B);
+        obj2 = new(A);
+        read(x);
+        read(y);
+        t = obj2.f(x);
+        t = obj2.g(x);
+        t = obj.f(x);
+        t = obj.g(x);
+        t = obj.g(x, y);
+        t = delete(obj2);
+
+        obj2 = new(B);
+        t = obj2.f(x);
+        t = obj2.g(x);
+        return 1;
+    end
+}
