@@ -1,0 +1,25 @@
+decl
+    int arr[50];
+enddecl
+
+int main() {
+    decl
+        int x, *ptr, n;
+    enddecl
+    begin
+        write("Input N:");
+        read(n);
+        x = 0;
+        write("Input arr:");
+        while ( x < n ) do
+            read(arr[x]);
+            x = x+1;
+        endwhile;
+        ptr = &arr;
+        write("arr[Second]:");
+        write(*(ptr+1));
+        write("arr[Third]:");
+        write(*(ptr+2));
+        return 1;
+    end
+}

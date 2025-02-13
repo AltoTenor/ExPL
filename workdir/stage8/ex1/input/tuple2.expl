@@ -1,0 +1,20 @@
+int main() {
+    decl
+        tuple Student(int a, int b, int c, int d, int e) x, t, *ptr;
+    enddecl
+    begin
+        read(t.a);
+        read(t.b);
+        read(t.c);
+        read(t.d);
+        read(t.e);
+        ptr = &t;
+        x = *ptr;
+        write(x.a);
+        write(x.b);
+        write(x.c);
+        write(x.d);
+        write(x.e);
+        return 1;
+    end
+}
