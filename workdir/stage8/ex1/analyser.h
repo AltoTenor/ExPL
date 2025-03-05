@@ -109,10 +109,9 @@ struct Typetable{
     int size;                           // size of the type
     int generalType;                    /* Add a custom field for differentiating 
                                            between CLASS_TYPE / USER_DEF/ TYPE_TUPLE */
-
     struct Fieldlist *fields;           // pointer to the head of fields list
-    struct Typetable *next;             // pointer to the next type table entry
     struct Classtable *Ctype;
+    struct Typetable *next;             // pointer to the next type table entry
 };
 
 struct Gsymbol{

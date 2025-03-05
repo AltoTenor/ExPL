@@ -28,7 +28,7 @@ digit [0-9]
 
 (class)             {   return CLASS; }
 (endclass)          {   return ENDCLASS; }
-(extends)          {   return EXTENDS; }
+(extends)           {   return EXTENDS; }
 
 (int)               {   return INT; }
 (str)               {   return STR; }
@@ -103,10 +103,4 @@ digit [0-9]
 
 int yywrap(void) {
     return 1;
-}
-
-int label_translate(){
-    yyin = fopen("temp.xsm","r");
-    yylex();
-    return 0;
 }

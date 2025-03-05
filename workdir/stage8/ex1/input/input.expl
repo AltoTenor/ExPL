@@ -1,20 +1,48 @@
+class 
+A {
+    decl
+        int x;
+        int y;
+        int f();
+    enddecl
+
+    int f() {
+        begin
+            write("A1");
+            return 1;
+        end
+    }
+}
+
+B extends A {
+    decl
+        int z;
+        int f();
+    enddecl
+
+    int f() {
+        begin
+            read(self.z);
+            write(self.z);
+            return 1;
+        end
+    }
+}
+endclass
+
+decl
+    A objA;
+    int temp;
+enddecl
+
 int main() {
     decl
-        tuple Student(int a, int b, int c, int d, int e) x, t, *ptr;
+        int t;
     enddecl
     begin
-        read(t.a);
-        read(t.b);
-        read(t.c);
-        read(t.d);
-        read(t.e);
-        ptr = &t;
-        x = *ptr;
-        write(x.a);
-        write(x.b);
-        write(x.c);
-        write(x.d);
-        write(x.e);
+        t = initialize();
+        objA = new(B);
+        temp = objA.f() ;
         return 1;
     end
 }

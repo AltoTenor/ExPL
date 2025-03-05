@@ -47,8 +47,8 @@ B extends A {
 endclass
 
 decl
-    B obj;
-    A obj2;
+    B objB;
+    A objA;
 enddecl
 
 int main() {
@@ -57,20 +57,22 @@ int main() {
     enddecl
     begin
         t = initialize();
-        obj = new(B);
-        obj2 = new(A);
+        objB = new(B);
+        objA = new(A);
         read(x);
         read(y);
-        t = obj2.f(x);
-        t = obj2.g(x);
-        t = obj.f(x);
-        t = obj.g(x);
-        t = obj.g(x, y);
-        t = delete(obj2);
+        t = objA.f(x);
+        t = objA.g(x);
 
-        obj2 = new(B);
-        t = obj2.f(x);
-        t = obj2.g(x);
+        t = objB.f(x);
+        t = objB.g(x);
+        
+        t = objB.g(x, y);
+        t = delete(objA);
+
+        objA = new(B);
+        t = objA.f(x);
+        t = objA.g(x);
         return 1;
     end
 }
