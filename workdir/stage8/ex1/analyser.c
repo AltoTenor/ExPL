@@ -37,17 +37,17 @@ struct tnode* createTree(   char* name,
     temp->Ctype = NULL;
     temp->nodetype = nodetype;
     switch (nodetype){
-        case NODE_CONST_NUM:       temp->value.intval = c->intval;
+        case NODE_CONST_NUM:       
+                            temp->value.intval = c->intval;
                             break;
 
-        case NODE_CONST_STR:  temp->value.strval = (char*)malloc(sizeof(char)*30); 
+        case NODE_CONST_STR:  
+                            temp->value.strval = (char*)malloc(sizeof(char)*30); 
                             strcpy(temp->value.strval, c->strval);
                             break;
 
-        case NODE_ID:        temp->name = (char*)malloc(20*sizeof(char));
+        case NODE_ID:       temp->name = (char*)malloc(20*sizeof(char));
                             strcpy(temp->name, name);
-                            break;
-
                             break;
         case NODE_FDEF:{      //Checks Function Decl match with Function Def
                             struct Gsymbol * funcEntry = GLookup(children[1]->name);
@@ -265,7 +265,6 @@ struct Lsymbol * LInstall(char *name, struct Typetable* type, struct tnode* head
         }
         temp -> next = cur;
     }
-
     return cur;
 }
 
@@ -456,6 +455,9 @@ struct Fieldlist * fetchFieldList(struct tnode * t){
             else i+=field->type->size; 
             field = field->next; 
         }
+        if ( i > 8 ){
+            printf("More than 8 words of members\n"); exit(1);
+        }
         return f1;
     }
 }
@@ -486,7 +488,7 @@ void initTuple(struct tnode **children, struct tnode * LSThead){
         size++; 
         t = t->next; 
     }
-    // Try to add checks for field list is same or not
+    // TODO: add checks for field list is same or not
     struct Typetable* type = TLookup(children[0]->name);
     if (type == NULL ) type = TInstall( children[0]->name, size, f, TYPE_TUPLE, NULL);
 
@@ -558,7 +560,7 @@ void assignVarTypes(struct tnode* t,
     }
     // Doing checks while coming up 
     switch (t->nodetype){
-        case NODE_ID:{       struct Lsymbol * t1 = LLookup( t->name , Lentry );
+        case NODE_ID:{      struct Lsymbol * t1 = LLookup( t->name , Lentry );
                             struct Gsymbol * t2 = GLookup( t->name );
                             // printLSymbolTable(Lentry);
                             // printf("%s\n",t->name);
@@ -579,7 +581,7 @@ void assignVarTypes(struct tnode* t,
                             break; 
                             }
         
-        case NODE_ARR_TYPE:   // Checking Index Type
+        case NODE_ARR_TYPE: // Checking Index Type
                             if ( t->children[1]->type !=  TLookup("int") ){
                                 printf("Indexing non-int address");
                                 exit(1);
@@ -589,7 +591,7 @@ void assignVarTypes(struct tnode* t,
                             // t->Gentry = t->children[0]->Gentry;
                             break;
                             
-        case NODE_ASSIGN:{   int op1 = t->children[0]->type != t->children[1]->type;
+        case NODE_ASSIGN:{  int op1 = t->children[0]->type == t->children[1]->type;
                             // Allow User Defined types to store NULL
                             int op2 = t->children[1]->type == TLookup("null") 
                                     && t->children[0]->type->generalType == USER_DEF;
@@ -600,14 +602,20 @@ void assignVarTypes(struct tnode* t,
                             // when doing parent = new(ChildClass)
                             int op5 = t->children[0]->Gentry
                                     && t->children[0]->Gentry->type->Ctype 
-                                    && t->children[1]->Ctype 
+                                    && t->children[1]->type->Ctype 
                                     && checkDescendant( t->children[0]->Gentry->type->Ctype,
-                                                        t->children[1]->Ctype );
+                                                        t->children[1]->type->Ctype );
                             int op6 = t->children[0]->Ctype
-                                    && t->children[1]->Ctype 
+                                    && t->children[1]->type->Ctype 
                                     && checkDescendant( t->children[0]->Ctype,
-                                                        t->children[1]->Ctype );
-                            if ( op1 == 1 && op2 == 0 && op3 == 0  && op5 == 0 && op6 == 0){
+                                                        t->children[1]->type->Ctype );
+
+                            if (t->children[0]->nodetype == NODE_SELF ){
+                                printf("Assigning to SELF not allowed\n");
+                                exit(1);
+                            }
+
+                            if ( op1==0 && op2==0 && op3==0  && op5==0 && op6==0 ){
                                 printf("Assignment Type Wrong\n");
                                 printf("Trying to assign %s to %s\n",
                                         t->children[1]->type->name, 
@@ -624,8 +632,8 @@ void assignVarTypes(struct tnode* t,
                             t->type = t->children[0]->type->fields->type;
                             break;
         
-        case NODE_EXPR:      t->type = t->children[0]->type;
-                            t->Ctype = t->children[0]->Ctype;
+        case NODE_EXPR:     t->type = t->children[0]->type;
+                            // t->Ctype = t->children[0]->Ctype;
                             break;
 
         
@@ -824,7 +832,8 @@ void assignVarTypes(struct tnode* t,
                             t->type = t->children[0]->type;
                             break;
                         }
-        case NODE_SELF:  {   struct Lsymbol * t1 = LLookup( "self" , Lentry );
+        case NODE_SELF:  {  struct Lsymbol * t1 = LLookup( "self" , Lentry );
+                            if ( t1 == NULL ) { printf("Incorrect access of SELF\n"); exit(1); }
                             t->Lentry = t1;
                             t->type = t1->type;
                             t->Ctype = t1->type->Ctype;
@@ -1165,14 +1174,15 @@ void checkMDef(struct tnode* t, struct Classtable* CTEntry){
         // Adding binding address to all entries
         addBindingAddr(t->Lentry);
 
+        printf("LST for Class: %s \nFunction: %s\n",CTEntry->className, t->children[1]->name);
+        printLSymbolTable(t->Lentry);
+
         // Make LST accessible to all Body and skip the Local Declarations
         assignVarTypes(t->children[3]->children[1], t->Lentry, t->children[0]->type, CTEntry);
         // Adding class entry to NODE_MDEF
         t->Ctype = CTEntry;
         t->paramlist = defParamList;
         
-        printf("LST for Class: %s \nFunction: %s\n",CTEntry->className, t->children[1]->name);
-        printLSymbolTable(t->Lentry);
     }
 }
 
@@ -1214,10 +1224,16 @@ struct Fieldlist * addParentFieldList(struct Classtable * CTEntry){
     }
     
     // Setting the field index correctly for new members
-    int offset = tail->fieldIndex+1;
+    int offset = tail->fieldIndex + tail->type->size;
     tail->next = CTEntry->memberField;
     tail = tail->next;
-    while ( tail ) { tail->fieldIndex += offset; tail = tail->next;}
+    while ( tail ) { 
+        tail->fieldIndex += offset; 
+        if ( tail->fieldIndex + tail->type->size > 8 ){ 
+            printf("Inherited class exceeds 8 words\n"); exit(1); 
+        }
+        tail = tail->next;
+    }
     return head;
 
 }
@@ -1464,3 +1480,10 @@ void compile(struct tnode * t){
     codeGen(t->children[4], c);
     return;
 }
+
+/* 
+Things that could be improved - 
+1. Stack implementation -> Slightly wrong understanding
+2. Check with empty function overloads or not properly.
+3. Null handling ?
+*/

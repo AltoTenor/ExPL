@@ -386,7 +386,6 @@ int codeGen( struct tnode *t , struct Context * c) {
                 // Assignment Operator ( evaluates RHS expression and frees that register )
                 case NODE_ASSIGN:{
                     i = codeGen(t->children[0], c);
-
                     // When one tuple is being assigned completely to another
                     if ( t->children[0]->type->generalType == TYPE_TUPLE ){
                         struct Fieldlist * f = t->children[0]->type->fields;
@@ -426,13 +425,16 @@ int codeGen( struct tnode *t , struct Context * c) {
                     // and the VFuncPtr
                     else if ( t->children[1]->nodetype == NODE_EXPR
                             && t->children[1]->children
-                            && t->children[1]->children[0]->Ctype
-                            && t->children[1]->children[0]->nodetype == NODE_ID ){
-                        j = codeGen(t->children[1]->children[0], c);
-                        fprintf(fp, "MOV [R%d], [R%d]\n", i, j );
-                        fprintf(fp, "ADD R%d,   1\n", i );
-                        fprintf(fp, "ADD R%d,   1\n", j );
-                        fprintf(fp, "MOV [R%d], [R%d]\n", i, j );
+                            && t->children[1]->children[0]->Ctype){
+                        if (    t->children[1]->children[0]->nodetype == NODE_ID 
+                            ||  t->children[1]->children[0]->nodetype == NODE_MEMBER 
+                        ){
+                            j = codeGen(t->children[1]->children[0], c);
+                            fprintf(fp, "MOV [R%d], [R%d]\n", i, j );
+                            fprintf(fp, "ADD R%d,   1\n", i );
+                            fprintf(fp, "ADD R%d,   1\n", j );
+                            fprintf(fp, "MOV [R%d], [R%d]\n", i, j );
+                        }
                     }
                     // Normal one variable assignment
                     else{

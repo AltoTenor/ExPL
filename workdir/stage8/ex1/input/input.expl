@@ -1,48 +1,111 @@
-class 
-A {
+type
+    list {
+        int data;
+        list next;
+    }
+endtype
+
+class linkedlist {
     decl
-        int x;
-        int y;
-        int f();
+        list head;
+        list tail;
+        int length;
+        int getlength();
+        int init();
+        list insert(int data);
+        list insert1(int data);
+        list insert2(int data);
+        int printlinkedlist();
     enddecl
 
-    int f() {
+    int getlength() {
+    begin
+        return self.length;
+    end
+    }
+
+    int init() {
+    begin
+        self.head = null;
+        self.tail = null;
+        self.length = 0;
+        return 1;
+    end
+    }
+
+    list insert1() {
         begin
-            write("A1");
-            return 1;
+            self.head = null;
+            self.tail = null;
+            self.length = 0;
+            return self.head;
         end
     }
-}
 
-B extends A {
+    list insert(int data) {
     decl
-        int z;
-        int f();
+        list temp;
     enddecl
+    begin
+        temp = alloc();
+        temp.data = data;
+        temp.next = null;
 
-    int f() {
-        begin
-            read(self.z);
-            write(self.z);
-            return 1;
-        end
+        if (self.head == null) then
+            self.head = temp;
+            self.tail = temp;
+        else
+            self.tail.next = temp;
+            self.tail = temp;
+        endif;
+
+        self.length = self.length + 1;
+        return temp;
+    end
+    }
+
+    int printlinkedlist() {
+    decl
+        list temp;
+    enddecl
+    begin
+        temp = self.head;
+        while (temp != null) do
+            write(temp.data);
+            temp = temp.next;
+        endwhile;
+        return 1;
+    end
     }
 }
 endclass
 
 decl
-    A objA;
-    int temp;
+    linkedlist obj;
 enddecl
 
 int main() {
     decl
-        int t;
+        int x, y, z;
+        list a;
     enddecl
     begin
-        t = initialize();
-        objA = new(B);
-        temp = objA.f() ;
+        x = initialize();
+        obj = new(linkedlist);
+        x = obj.init();
+        read(x);
+
+        while (x != 0) do
+            read(y);
+            a = obj.insert(y);
+            x = x - 1;
+        endwhile;
+
+        write("Length - ");
+        write(obj.getlength());
+        write("List - ");
+        x = obj.printlinkedlist();
+
         return 1;
     end
 }
